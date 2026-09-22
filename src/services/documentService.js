@@ -97,22 +97,26 @@ export async function uploadPdfFileToStorage(file) {
 
 export async function loadCategories() {
   let dbCategories = [];
+  let isDbSuccess = false;
   const defaultIds = ['cat-profile', 'cat-fnb', 'cat-estate', 'cat-general'];
 
   if (isSupabaseConfigured && supabase) {
     try {
       // Chỉ đọc từ database, không tự động upsert gây lỗi 409 Conflict
       const { data, error } = await supabase.from('categories').select('*').order('created_at', { ascending: true });
-      if (!error && data && data.length > 0) {
-        dbCategories = data.map(c => {
-          const isDef = defaultIds.includes(c.id);
-          return {
-            id: c.id,
-            name: c.name,
-            isDefault: isDef,
-            color: c.color,
-          };
-        });
+      if (!error && data) {
+        isDbSuccess = true;
+        if (data.length > 0) {
+          dbCategories = data.map(c => {
+            const isDef = defaultIds.includes(c.id);
+            return {
+              id: c.id,
+              name: c.name,
+              isDefault: isDef,
+              color: c.color,
+            };
+          });
+        }
       }
     } catch (err) {
       console.warn('Load categories from DB failed:', err);
@@ -133,11 +137,23 @@ export async function loadCategories() {
   dbCategories.forEach(c => {
     combinedMap.set(c.id, { ...c, isDefault: defaultIds.includes(c.id) });
   });
-  localCustomCats.forEach(c => {
-    combinedMap.set(c.id, { ...c, isDefault: defaultIds.includes(c.id) });
-  });
 
-  return Array.from(combinedMap.values());
+  // Chỉ khi DB offline mới nạp từ localStorage
+  if (!isDbSuccess) {
+    localCustomCats.forEach(c => {
+      combinedMap.set(c.id, { ...c, isDefault: defaultIds.includes(c.id) });
+    });
+  }
+
+  const allCats = Array.from(combinedMap.values());
+  if (isDbSuccess) {
+    try {
+      const customOnly = allCats.filter(c => !defaultIds.includes(c.id));
+      localStorage.setItem('nsg_custom_categories', JSON.stringify(customOnly));
+    } catch (e) {}
+  }
+
+  return allCats;
 }
 
 // Helper sắp xếp subfolders với General luôn đứng đầu danh sách
@@ -153,49 +169,40 @@ export function sortSubFoldersWithGeneralFirst(subfolders = []) {
 
 export async function loadSubFolders() {
   let dbSubFolders = [];
+  let isDbSuccess = false;
 
   if (isSupabaseConfigured && supabase) {
     try {
       // Tải danh sách subfolders từ Database thuần túy
       const { data, error } = await supabase.from('subfolders').select('*').order('created_at', { ascending: true });
       if (!error && data) {
-        dbSubFolders = data
-          .filter(s => 
-            s.id !== 'sub-exocafe' && 
-            s.id !== 'sub-exotel' && 
-            s.id !== 'sub-general' &&
-            !s.id?.startsWith('sub-general') &&
-            s.name?.toLowerCase() !== 'general' &&
-            !s.name?.toLowerCase().includes('exocafe') && 
-            !s.name?.toLowerCase().includes('exotel')
-          )
-          .map(s => ({
-            id: s.id,
-            categoryId: s.category_id,
-            name: s.name,
-            description: s.description,
-            isDefault: Boolean(s.is_default),
-          }));
+        isDbSuccess = true;
+        dbSubFolders = data.map(s => ({
+          id: s.id,
+          categoryId: s.category_id,
+          name: s.name,
+          description: s.description || '',
+          isDefault: s.is_default || false,
+        }));
       }
     } catch (err) {
       console.warn('Load subfolders from DB failed:', err);
     }
   }
 
-  // Lấy dữ liệu từ localStorage làm tầng lưu trữ dự phòng siêu tốc
+  // Đọc thêm từ localStorage dự phòng
   let localCustomSubs = [];
   try {
     const saved = localStorage.getItem('nsg_custom_subfolders');
     if (saved) {
       const parsed = JSON.parse(saved);
-      localCustomSubs = parsed.filter(s => 
+      localCustomSubs = (Array.isArray(parsed) ? parsed : []).filter(s => 
         s.id !== 'sub-exocafe' && 
         s.id !== 'sub-exotel' && 
         s.id !== 'sub-general' &&
         !s.id?.startsWith('sub-general') &&
         s.name?.toLowerCase() !== 'general'
       );
-      localStorage.setItem('nsg_custom_subfolders', JSON.stringify(localCustomSubs));
     }
   } catch (e) {
     console.error('Lỗi đọc localStorage subfolders:', e);
@@ -204,19 +211,40 @@ export async function loadSubFolders() {
   const combinedMap = new Map();
   INITIAL_SUBFOLDERS.forEach(s => combinedMap.set(s.id, s));
   dbSubFolders.forEach(s => combinedMap.set(s.id, s));
-  localCustomSubs.forEach(s => {
-    combinedMap.set(s.id, s);
-  });
 
-  return sortSubFoldersWithGeneralFirst(Array.from(combinedMap.values()));
+  // Chỉ khi DB offline mới nạp từ localStorage
+  if (!isDbSuccess) {
+    localCustomSubs.forEach(s => {
+      combinedMap.set(s.id, s);
+    });
+  }
+
+  const allSubs = Array.from(combinedMap.values());
+  if (isDbSuccess) {
+    try {
+      const customOnly = allSubs.filter(s => 
+        s.id !== 'sub-exocafe' && 
+        s.id !== 'sub-exotel' && 
+        s.id !== 'sub-general' &&
+        !s.id?.startsWith('sub-general') &&
+        s.name?.toLowerCase() !== 'general'
+      );
+      localStorage.setItem('nsg_custom_subfolders', JSON.stringify(customOnly));
+    } catch (e) {}
+  }
+
+  return sortSubFoldersWithGeneralFirst(allSubs);
 }
 
 export async function loadDocuments(subFolders = []) {
   let dbDocs = [];
+  let isDbSuccess = false;
+
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase.from('documents').select('*').order('created_at', { ascending: false });
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
+        isDbSuccess = true;
         dbDocs = data.map(d => ({
           id: d.id,
           categoryId: d.category_id,
@@ -230,6 +258,8 @@ export async function loadDocuments(subFolders = []) {
           tags: d.tags || [],
           createdAt: d.created_at ? d.created_at.split('T')[0] : 'Vừa xong',
         }));
+      } else if (error) {
+        console.warn('Lỗi đọc documents từ Supabase:', error.message || error);
       }
     } catch (err) {
       console.warn('Load documents from DB failed:', err);
@@ -273,31 +303,52 @@ export async function loadDocuments(subFolders = []) {
     }
   });
 
-  // 3. Nạp từ LocalStorage (giữ nguyên vị trí categoryId & subFolderId đã được người dùng chỉnh sửa)
-  localDocs.forEach(d => {
-    if (combinedMap.has(d.id)) {
-      const existing = combinedMap.get(d.id);
-      combinedMap.set(d.id, {
-        ...existing,
-        ...d,
-        fileUrl: d.fileUrl || existing.fileUrl,
-        categoryId: d.categoryId || existing.categoryId,
-        subFolderId: d.subFolderId !== undefined ? d.subFolderId : existing.subFolderId,
-        content: d.content || existing.content,
-        isProtected: existing.isProtected || d.id === 'doc-nsg-history-profile',
-        isDefault: existing.isDefault || d.id === 'doc-nsg-history-profile',
-      });
-    } else {
-      const isProt = d.id === 'doc-nsg-history-profile';
-      combinedMap.set(d.id, { ...d, isProtected: isProt, isDefault: isProt });
-    }
-  });
+  // 3. Xử lý LocalStorage:
+  if (isDbSuccess) {
+    // Nếu kết nối DB thành công: Database là NGUỒN SỰ THẬT DUY NHẤT.
+    // CHỈ bổ sung fileUrl/content nếu DB chưa có nhưng local có (ví dụ vừa upload tạm).
+    // TUYỆT ĐỐI KHÔNG thêm tài liệu không có trong DB vì tài liệu đó đã bị xóa trên tab/thiết bị khác!
+    localDocs.forEach(d => {
+      if (combinedMap.has(d.id)) {
+        const existing = combinedMap.get(d.id);
+        if (!existing.fileUrl && d.fileUrl) {
+          combinedMap.set(d.id, {
+            ...existing,
+            fileUrl: d.fileUrl,
+          });
+        }
+      }
+    });
+  } else {
+    // CHỈ KHI DATABASE MẤT KẾT NỐI (Offline fallback) mới nạp toàn bộ từ localStorage:
+    localDocs.forEach(d => {
+      if (combinedMap.has(d.id)) {
+        const existing = combinedMap.get(d.id);
+        combinedMap.set(d.id, {
+          ...existing,
+          ...d,
+          fileUrl: d.fileUrl || existing.fileUrl,
+          categoryId: d.categoryId || existing.categoryId,
+          subFolderId: d.subFolderId !== undefined ? d.subFolderId : existing.subFolderId,
+          content: d.content || existing.content,
+          isProtected: existing.isProtected || d.id === 'doc-nsg-history-profile',
+          isDefault: existing.isDefault || d.id === 'doc-nsg-history-profile',
+        });
+      } else {
+        const isProt = d.id === 'doc-nsg-history-profile';
+        combinedMap.set(d.id, { ...d, isProtected: isProt, isDefault: isProt });
+      }
+    });
+  }
 
   const allDocs = Array.from(combinedMap.values());
 
-  try {
-    localStorage.setItem('nsg_custom_documents', JSON.stringify(allDocs));
-  } catch (e) {}
+  // Lưu lại danh sách chuẩn xác vào localStorage (đồng bộ xóa các file đã bị xóa trên DB khỏi localStorage)
+  if (isDbSuccess) {
+    try {
+      localStorage.setItem('nsg_custom_documents', JSON.stringify(allDocs));
+    } catch (e) {}
+  }
 
   return allDocs;
 }
@@ -664,11 +715,11 @@ export async function updateDocumentInDb(doc) {
   }
 }
 
-export async function deleteDocumentFromDb(docId) {
+export async function deleteDocumentFromDb(docId, fileUrl = null) {
   // Không cho phép xóa tài liệu hệ thống cốt lõi
   if (docId === 'doc-nsg-history-profile') {
     console.warn('Không thể xóa tài liệu cốt lõi hệ thống:', docId);
-    return;
+    return { success: false, error: 'Protected document' };
   }
 
   // 1. Xóa khỏi LocalStorage dự phòng & IndexedDB
@@ -687,19 +738,47 @@ export async function deleteDocumentFromDb(docId) {
   // 2. Xóa khỏi Supabase DB
   if (isSupabaseConfigured && supabase) {
     try {
-      await supabase.from('documents').delete().eq('id', docId);
+      const { data, error } = await supabase.from('documents').delete().eq('id', docId).select();
+      if (error) {
+        console.error('LỖI KHI XÓA TÀI LIỆU TRÊN SUPABASE DB:', error.message || error);
+        return { success: false, error: error.message };
+      }
+      console.log('✅ Đã xóa tài liệu khỏi Supabase DB thành công:', docId, data);
     } catch (err) {
       console.error('Delete document DB error:', err);
+      return { success: false, error: err.message };
+    }
+
+    // 3. Xóa tệp tương ứng trong Supabase Storage bucket nsg-documents
+    if (fileUrl && fileUrl.includes('nsg-documents')) {
+      try {
+        const parts = fileUrl.split('nsg-documents/');
+        if (parts.length > 1) {
+          const filePath = decodeURIComponent(parts[1].split('?')[0]);
+          await supabase.storage.from('nsg-documents').remove([filePath]);
+          console.log('✅ Đã dọn dẹp tệp trên Supabase Storage:', filePath);
+        }
+      } catch (stErr) {
+        console.warn('Lỗi khi xóa tệp trên Supabase Storage:', stErr);
+      }
     }
   }
+
+  return { success: true };
 }
 
 // Thao tác hàng loạt (Bulk Operations)
-export async function bulkDeleteDocumentsFromDb(docIds) {
-  const safeDocIds = (docIds || []).filter(id => id !== 'doc-nsg-history-profile');
-  if (safeDocIds.length === 0) return;
+export async function bulkDeleteDocumentsFromDb(docsOrIds) {
+  const items = (docsOrIds || []).map(item => 
+    typeof item === 'string' ? { id: item, fileUrl: null } : item
+  );
+  const safeItems = items.filter(d => d.id !== 'doc-nsg-history-profile');
+  const safeDocIds = safeItems.map(d => d.id);
+  if (safeDocIds.length === 0) return { success: true };
 
+  // 1. Xóa khỏi LocalStorage dự phòng & IndexedDB
   try {
+    safeDocIds.forEach(id => deleteLocalFile(id));
     const saved = localStorage.getItem('nsg_custom_documents');
     if (saved) {
       const existing = JSON.parse(saved);
@@ -710,13 +789,41 @@ export async function bulkDeleteDocumentsFromDb(docIds) {
     console.error('Lỗi xóa hàng loạt khỏi localStorage:', e);
   }
 
+  // 2. Xóa khỏi Supabase DB
   if (isSupabaseConfigured && supabase && safeDocIds.length > 0) {
     try {
-      await supabase.from('documents').delete().in('id', safeDocIds);
+      const { data, error } = await supabase.from('documents').delete().in('id', safeDocIds).select();
+      if (error) {
+        console.error('LỖI KHI XÓA HÀNG LOẠT TRÊN SUPABASE DB:', error.message || error);
+        return { success: false, error: error.message };
+      }
+      console.log('✅ Đã xóa hàng loạt tài liệu khỏi Supabase DB thành công:', safeDocIds, data);
     } catch (err) {
       console.error('Bulk delete documents error:', err);
+      return { success: false, error: err.message };
+    }
+
+    // 3. Xóa các tệp trên Supabase Storage
+    try {
+      const filePathsToRemove = [];
+      safeItems.forEach(item => {
+        if (item.fileUrl && item.fileUrl.includes('nsg-documents')) {
+          const parts = item.fileUrl.split('nsg-documents/');
+          if (parts.length > 1) {
+            filePathsToRemove.push(decodeURIComponent(parts[1].split('?')[0]));
+          }
+        }
+      });
+      if (filePathsToRemove.length > 0) {
+        await supabase.storage.from('nsg-documents').remove(filePathsToRemove);
+        console.log('✅ Đã dọn dẹp các tệp trên Supabase Storage:', filePathsToRemove);
+      }
+    } catch (stErr) {
+      console.warn('Lỗi dọn dẹp hàng loạt trên Storage:', stErr);
     }
   }
+
+  return { success: true };
 }
 
 export async function bulkMoveDocumentsInDb(docIds, targetCategoryId, targetSubFolderId) {

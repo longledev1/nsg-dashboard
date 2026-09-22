@@ -323,8 +323,12 @@ export default function DashboardPage({ user, onLogout }) {
     setDocuments(prev => prev.filter(d => d.id !== doc.id));
     setSelectedDocIds(prev => prev.filter(id => id !== doc.id));
     setDeletingDocument(null);
-    await deleteDocumentFromDb(doc.id);
-    showToast(`Đã xóa tài liệu "${doc.title}" khỏi kho.`, 'info');
+    const result = await deleteDocumentFromDb(doc.id, doc.fileUrl);
+    if (result && !result.success) {
+      showToast(`Đã xóa trên máy này, nhưng Supabase báo lỗi: "${result.error}". Vui lòng cấp quyền DELETE trên Supabase!`, 'warning');
+    } else {
+      showToast(`Đã xóa vĩnh viễn tài liệu "${doc.title}".`, 'info');
+    }
   };
 
   const handleMoveSingleDocument = (doc) => {
@@ -342,10 +346,10 @@ export default function DashboardPage({ user, onLogout }) {
       showToast('Bạn không có quyền xóa hàng loạt tài liệu!', 'error');
       return;
     }
-    const safeSelectedIds = selectedDocIds.filter(id => {
-      const doc = documents.find(d => d.id === id);
-      return !doc?.isProtected && !doc?.isDefault && id !== 'doc-nsg-history-profile';
-    });
+    const safeSelectedDocs = documents.filter(d => 
+      selectedDocIds.includes(d.id) && !d?.isProtected && !d?.isDefault && d.id !== 'doc-nsg-history-profile'
+    );
+    const safeSelectedIds = safeSelectedDocs.map(d => d.id);
 
     if (safeSelectedIds.length === 0) {
       showToast('Các tài liệu được chọn thuộc hệ thống bảo vệ và không thể xóa!', 'error');
@@ -354,9 +358,13 @@ export default function DashboardPage({ user, onLogout }) {
 
     const count = safeSelectedIds.length;
     setDocuments(prev => prev.filter(d => !safeSelectedIds.includes(d.id)));
-    await bulkDeleteDocumentsFromDb(safeSelectedIds);
     setSelectedDocIds([]);
-    showToast(`Đã xóa ${count} tài liệu được chọn khỏi kho (đã bảo vệ các tài liệu hệ thống).`, 'info');
+    const result = await bulkDeleteDocumentsFromDb(safeSelectedDocs);
+    if (result && !result.success) {
+      showToast(`Đã xóa trên máy này, nhưng Supabase báo lỗi: "${result.error}". Vui lòng cấp quyền DELETE trên Supabase!`, 'warning');
+    } else {
+      showToast(`Đã xóa vĩnh viễn ${count} tài liệu được chọn khỏi hệ thống.`, 'info');
+    }
   };
 
   const handleConfirmBulkMove = async (targetCategoryId, targetSubFolderId) => {

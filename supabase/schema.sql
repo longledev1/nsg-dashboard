@@ -52,38 +52,39 @@ ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subfolders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 
--- Policy cho phép đọc dữ liệu nội bộ
+-- Xóa các policy cũ nếu có để tránh xung đột
 DROP POLICY IF EXISTS "Cho phép đọc dữ liệu nội bộ" ON categories;
-CREATE POLICY "Cho phép đọc dữ liệu nội bộ" ON categories FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Cho phép quản lý categories" ON categories;
+DROP POLICY IF EXISTS "Allow All Categories" ON categories;
+CREATE POLICY "Allow All Categories" ON categories FOR ALL TO public USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Cho phép đọc subfolders nội bộ" ON subfolders;
-CREATE POLICY "Cho phép đọc subfolders nội bộ" ON subfolders FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Cho phép quản lý subfolders" ON subfolders;
+DROP POLICY IF EXISTS "Allow All Subfolders" ON subfolders;
+CREATE POLICY "Allow All Subfolders" ON subfolders FOR ALL TO public USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Cho phép đọc tài liệu nội bộ" ON documents;
-CREATE POLICY "Cho phép đọc tài liệu nội bộ" ON documents FOR SELECT USING (true);
-
--- Policy cho phép thêm/sửa/xóa tài liệu
 DROP POLICY IF EXISTS "Cho phép quản lý tài liệu" ON documents;
-CREATE POLICY "Cho phép quản lý tài liệu" ON documents FOR ALL USING (true);
+DROP POLICY IF EXISTS "Allow All Documents" ON documents;
+CREATE POLICY "Allow All Documents" ON documents FOR ALL TO public USING (true) WITH CHECK (true);
 
-DROP POLICY IF EXISTS "Cho phép quản lý categories" ON categories;
-CREATE POLICY "Cho phép quản lý categories" ON categories FOR ALL USING (true);
-
-DROP POLICY IF EXISTS "Cho phép quản lý subfolders" ON subfolders;
-CREATE POLICY "Cho phép quản lý subfolders" ON subfolders FOR ALL USING (true);
-
--- 5. PHÂN QUYỀN UPLOAD CHO SUPABASE STORAGE BUCKET ('nsg-documents')
--- Cho phép Upload (INSERT) file PDF vào Bucket nsg-documents
-DROP POLICY IF EXISTS "Cho phép Upload vào nsg-documents" ON storage.objects;
-CREATE POLICY "Cho phép Upload vào nsg-documents" ON storage.objects 
-FOR INSERT WITH CHECK (bucket_id = 'nsg-documents');
-
--- Cho phép Đọc (SELECT) file PDF từ Bucket nsg-documents
-DROP POLICY IF EXISTS "Cho phép Đọc từ nsg-documents" ON storage.objects;
-CREATE POLICY "Cho phép Đọc từ nsg-documents" ON storage.objects 
-FOR SELECT USING (bucket_id = 'nsg-documents');
-
--- Cho phép Xóa (DELETE) file PDF trong Bucket nsg-documents
+-- 5. PHÂN QUYỀN TOÀN DIỆN CHO SUPABASE STORAGE BUCKET ('nsg-documents')
+DROP POLICY IF EXISTS "Allow Public Uploads" ON storage.objects;
+DROP POLICY IF EXISTS "Allow Public Updates" ON storage.objects;
+DROP POLICY IF EXISTS "Allow Public Select" ON storage.objects;
+DROP POLICY IF EXISTS "Allow Public Delete" ON storage.objects;
 DROP POLICY IF EXISTS "Cho phép Xóa từ nsg-documents" ON storage.objects;
-CREATE POLICY "Cho phép Xóa từ nsg-documents" ON storage.objects 
-FOR DELETE USING (bucket_id = 'nsg-documents');
+DROP POLICY IF EXISTS "Cho phép Upload vào nsg-documents" ON storage.objects;
+DROP POLICY IF EXISTS "Cho phép Đọc từ nsg-documents" ON storage.objects;
+
+-- Cho phép Đọc (SELECT) file PDF
+CREATE POLICY "Allow Public Select" ON storage.objects FOR SELECT TO public USING (bucket_id = 'nsg-documents');
+
+-- Cho phép Tải lên (INSERT) file PDF
+CREATE POLICY "Allow Public Uploads" ON storage.objects FOR INSERT TO public WITH CHECK (bucket_id = 'nsg-documents');
+
+-- Cho phép Cập nhật (UPDATE) file PDF
+CREATE POLICY "Allow Public Updates" ON storage.objects FOR UPDATE TO public USING (bucket_id = 'nsg-documents');
+
+-- Cho phép Xóa (DELETE) file PDF
+CREATE POLICY "Allow Public Delete" ON storage.objects FOR DELETE TO public USING (bucket_id = 'nsg-documents');

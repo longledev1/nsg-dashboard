@@ -41,11 +41,16 @@ CREATE TABLE IF NOT EXISTS documents (
   subfolder_id TEXT REFERENCES subfolders(id),
   title TEXT NOT NULL,
   description TEXT,
-  file_url TEXT NOT NULL,
+  file_url TEXT,
   file_size TEXT,
   tags TEXT[],
+  content TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
 );
+
+-- Cập nhật cấu trúc nếu bảng documents đã tồn tại từ trước
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS content TEXT;
+ALTER TABLE documents ALTER COLUMN file_url DROP NOT NULL;
 
 -- 4. Bật Row Level Security (RLS) cho các bảng
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;

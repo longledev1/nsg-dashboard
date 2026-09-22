@@ -6,6 +6,7 @@ import {
 import { getLocalFileUrl, saveLocalFile } from '../services/localFileStorage';
 import { sanitizeFileUrl, uploadPdfFileToStorage, updateDocumentInDb } from '../services/documentService';
 import { extractDocumentContent } from '../services/pdfExtractor';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 /**
  * Trình dựng nội dung văn bản Word chuyên nghiệp & thanh lịch (Structured Word Document Renderer)
@@ -135,7 +136,17 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
       if (!document) return;
       setIsUrlResolved(false);
 
-      // 1. Kiểm tra trong IndexedDB của máy hiện tại
+      // 1. Phân giải URL từ Cloud / Public Static Path được truyền qua props
+      const rawUrl = document.fileUrl || document.file_url;
+      const cleanUrl = sanitizeFileUrl(rawUrl);
+
+      if (cleanUrl && isMounted) {
+        setActiveUrl(cleanUrl);
+        setIsUrlResolved(true);
+        return;
+      }
+
+      // 2. Kiểm tra trong IndexedDB của máy hiện tại
       if (document.id) {
         try {
           const localData = await getLocalFileUrl(document.id);
@@ -149,17 +160,29 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
         }
       }
 
-      // 2. Phân giải URL từ Cloud / Public Static Path
-      const rawUrl = document.fileUrl || document.file_url;
-      const cleanUrl = sanitizeFileUrl(rawUrl);
+      // 3. Tự động truy vấn trực tiếp Supabase Database (Xử lý trường hợp Tab 2 mở sẵn từ trước khi Tab 1 nạp file)
+      if (document.id && isSupabaseConfigured && supabase) {
+        try {
+          const { data: dbData } = await supabase
+            .from('documents')
+            .select('file_url')
+            .eq('id', document.id)
+            .maybeSingle();
 
-      if (cleanUrl && isMounted) {
-        setActiveUrl(cleanUrl);
-        setIsUrlResolved(true);
-        return;
+          if (dbData?.file_url) {
+            const freshUrl = sanitizeFileUrl(dbData.file_url);
+            if (freshUrl && isMounted) {
+              setActiveUrl(freshUrl);
+              setIsUrlResolved(true);
+              return;
+            }
+          }
+        } catch (dbErr) {
+          console.warn('Truy vấn file_url mới nhất từ DB thất bại:', dbErr);
+        }
       }
 
-      // 3. Với tài liệu hồ sơ mặc định nếu mất URL, fallback về public asset
+      // 4. Với tài liệu hồ sơ mặc định nếu mất URL, fallback về public asset
       if (document.id === 'doc-nsg-history-profile' && isMounted) {
         setActiveUrl('/NSG History.docx');
         setIsUrlResolved(true);
@@ -243,27 +266,33 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
 
       // 3. Tải lên Supabase Storage bucket nsg-documents
       const uploadResult = await uploadPdfFileToStorage(file);
-      const remotePublicUrl = uploadResult?.url || null;
+      if (uploadResult?.error || !uploadResult?.url) {
+        const errMsg = uploadResult?.error || 'Không nhận được URL từ Supabase Storage';
+        alert(`❌ Tệp đã lưu tạm trên máy này, nhưng CHƯA thể tải lên Cloud Storage Supabase!\n\nLỗi từ Supabase: "${errMsg}"\n\n👉 Bạn hãy vào Supabase SQL Editor chạy câu lệnh cấp quyền cho Storage bucket 'nsg-documents'.`);
+        return;
+      }
+
+      const remotePublicUrl = uploadResult.url;
 
       // 4. Đồng bộ vào Supabase Database
       const updatedDoc = {
         ...document,
-        fileUrl: remotePublicUrl || freshBlobUrl,
+        fileUrl: remotePublicUrl,
         content: extracted || document.content || document.description || '',
         fileSize: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
       };
 
-      await updateDocumentInDb(updatedDoc);
+      const dbResult = await updateDocumentInDb(updatedDoc);
+      if (dbResult && !dbResult.success) {
+        alert(`❌ Tệp PDF đã tải lên Cloud Storage thành công, nhưng LỖI khi lưu vào Supabase Database: "${dbResult.error}"\n\n👉 Vui lòng kiểm tra quyền của bảng 'documents' trên Supabase.`);
+        return;
+      }
+
       if (onUpdateDocument) {
         onUpdateDocument(updatedDoc);
       }
-      if (remotePublicUrl) {
-        setActiveUrl(remotePublicUrl);
-        alert('✅ Đã đồng bộ tệp lên Supabase Cloud thành công!\nTừ bây giờ điện thoại, iPad và mọi thiết bị khác đều xem được ngay lập tức.');
-      } else {
-        const errMsg = uploadResult?.error || 'Không rõ nguyên nhân';
-        alert(`⚠️ Tệp đã được lưu vào bộ nhớ của laptop này, nhưng CHƯA tải được lên Cloud Supabase Storage!\n\nLỗi từ Supabase: "${errMsg}"\n\n👉 Để sửa lỗi này: Vào Supabase -> SQL Editor và chạy lệnh cấp quyền INSERT cho bucket "nsg-documents".`);
-      }
+      setActiveUrl(remotePublicUrl);
+      alert('✅ ĐÃ ĐỒNG BỘ THÀNH CÔNG LÊN CLOUD!\nTệp PDF đã được lưu vào Storage và Database. Tab khác, iPad và Điện thoại từ bây giờ đều xem được ngay lập tức!');
     } catch (err) {
       console.error('Lỗi khi nạp lại tệp:', err);
       alert('Không thể lưu tệp: ' + err.message);

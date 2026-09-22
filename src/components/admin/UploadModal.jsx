@@ -134,6 +134,7 @@ export default function UploadModal({
 
     try {
       // Upload từng file một hàng loạt với tiến trình chi tiết
+      const storageErrors = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         setCurrentProcessingFile(file);
@@ -157,6 +158,10 @@ export default function UploadModal({
 
         const extractedContent = extractedContentResult || '';
         const uploadedPublicUrl = uploadStorageResult?.url || null;
+
+        if (!uploadStorageResult?.url) {
+          storageErrors.push(`${file.name}: ${uploadStorageResult?.error || 'Lỗi Storage'}`);
+        }
 
         // Lưu trữ thông tin vào cơ sở dữ liệu
         setProgressPercent(Math.round(((i + 0.95) / files.length) * 100));
@@ -190,9 +195,13 @@ export default function UploadModal({
 
       // Hoàn tất 100%
       setProgressPercent(100);
-      setUploadStepText('Đã tải lên và xử lý toàn bộ tài liệu thành công!');
+      setUploadStepText('Đã xử lý toàn bộ tài liệu!');
       if (onShowToast) {
-        onShowToast(`Đã upload thành công ${files.length} tài liệu vào kho!`, 'success');
+        if (storageErrors.length > 0) {
+          onShowToast(`Đã lưu ${files.length} tệp, nhưng ${storageErrors.length} tệp chưa lên được Cloud Supabase (${storageErrors[0]}).`, 'warning');
+        } else {
+          onShowToast(`Đã upload và đồng bộ thành công ${files.length} tài liệu vào kho Cloud!`, 'success');
+        }
       }
 
       setTimeout(() => {

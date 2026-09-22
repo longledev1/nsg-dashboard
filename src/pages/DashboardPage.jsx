@@ -78,10 +78,10 @@ export default function DashboardPage({ user, onLogout }) {
     setToast({ message, type });
   };
 
-  // Initial Data Load from Supabase DB via documentService
+  // Initial Data Load & Cross-tab Auto-Sync from Supabase DB
   useEffect(() => {
-    async function fetchData() {
-      setLoadingData(true);
+    async function fetchData(silent = false) {
+      if (!silent) setLoadingData(true);
       try {
         const [cats, subs, docs] = await Promise.all([
           loadCategories(),
@@ -94,11 +94,29 @@ export default function DashboardPage({ user, onLogout }) {
       } catch (err) {
         console.error('Error fetching data from documentService:', err);
       } finally {
-        setLoadingData(false);
+        if (!silent) setLoadingData(false);
       }
     }
 
     fetchData();
+
+    // Tự động đồng bộ ngầm khi người dùng quay lại tab (switch tab)
+    const handleWindowFocus = () => {
+      fetchData(true);
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+    const handleVisibilityChange = () => {
+      if (window.document.visibilityState === 'visible') {
+        fetchData(true);
+      }
+    };
+    window.document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleWindowFocus);
+      window.document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   // Multi-select Document Handlers

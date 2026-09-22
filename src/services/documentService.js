@@ -649,12 +649,12 @@ export async function addDocumentToDb(doc) {
       const payload = {
         id: doc.id,
         category_id: doc.categoryId,
-        subfolder_id: doc.subFolderId,
+        subfolder_id: doc.subFolderId || null,
         title: doc.title,
-        description: doc.description,
+        description: doc.description || '',
         file_url: doc.fileUrl,
         file_size: doc.fileSize,
-        tags: doc.tags,
+        tags: doc.tags || [],
       };
 
       if (doc.content) {
@@ -663,7 +663,7 @@ export async function addDocumentToDb(doc) {
 
       let { error } = await supabase.from('documents').upsert(payload, { onConflict: 'id' });
 
-      if (error && error.message?.includes('content')) {
+      if (error && (error.message?.includes('content') || error.code === 'PGRST204')) {
         // Nếu DB chưa có cột content, thử lại không có cột content
         delete payload.content;
         const res = await supabase.from('documents').upsert(payload, { onConflict: 'id' });
@@ -672,13 +672,17 @@ export async function addDocumentToDb(doc) {
 
       if (error) {
         console.error('Lỗi chèn documents DB:', error.message);
+        return { success: false, error: error.message };
       } else {
         console.log('Đã lưu tài liệu thành công vào Supabase DB:', doc.title);
+        return { success: true };
       }
     } catch (err) {
       console.error('Add document DB error:', err);
+      return { success: false, error: err.message };
     }
   }
+  return { success: true };
 }
 
 export async function updateDocumentInDb(doc) {
@@ -694,25 +698,47 @@ export async function updateDocumentInDb(doc) {
     console.error('Lỗi cập nhật document trong localStorage:', e);
   }
 
-  // 2. Đồng bộ lên Supabase DB (dùng upsert để nếu tài liệu hệ thống chưa có trong bảng documents thì tự insert vào DB)
+  // 2. Đồng bộ lên Supabase DB
   if (isSupabaseConfigured && supabase) {
     try {
-      await supabase.from('documents').upsert({
+      const payload = {
         id: doc.id,
         title: doc.title,
-        description: doc.description,
-        content: doc.content || '',
+        description: doc.description || '',
         category_id: doc.categoryId,
         subfolder_id: doc.subFolderId || null,
         file_url: doc.fileUrl,
         file_size: doc.fileSize,
-        file_type: doc.fileType,
-        tags: doc.tags,
-      }, { onConflict: 'id' });
+        tags: doc.tags || [],
+      };
+
+      if (doc.content) {
+        payload.content = doc.content;
+      }
+
+      let { error } = await supabase.from('documents').upsert(payload, { onConflict: 'id' });
+
+      if (error && (error.message?.includes('content') || error.code === 'PGRST204')) {
+        // Nếu DB chưa có cột content, thử lại không có cột content
+        delete payload.content;
+        const res = await supabase.from('documents').upsert(payload, { onConflict: 'id' });
+        error = res.error;
+      }
+
+      if (error) {
+        console.error('LỖI CẬP NHẬT TÀI LIỆU VÀO SUPABASE DB:', error.message || error);
+        return { success: false, error: error.message };
+      }
+
+      console.log('✅ Đã cập nhật tài liệu vào Supabase DB thành công:', doc.title);
+      return { success: true };
     } catch (err) {
       console.error('Update document DB error:', err);
+      return { success: false, error: err.message };
     }
   }
+
+  return { success: true };
 }
 
 export async function deleteDocumentFromDb(docId, fileUrl = null) {
@@ -866,20 +892,22 @@ export async function bulkMoveDocumentsInDb(docIds, targetCategoryId, targetSubF
       // 2. Với tài liệu hệ thống (như doc-nsg-history-profile), nếu chưa có trong DB thì upsert vào
       for (const id of docIds) {
         const initDoc = INITIAL_DOCUMENTS.find(d => d.id === id);
-        if (initDoc) {
-          await supabase.from('documents').upsert({
+          const payload = {
             id: initDoc.id,
             title: initDoc.title,
             description: initDoc.description,
-            content: initDoc.content || '',
             category_id: targetCategoryId,
             subfolder_id: targetSubFolderId || null,
             file_url: initDoc.fileUrl,
             file_size: initDoc.fileSize,
-            file_type: initDoc.fileType,
-            tags: initDoc.tags,
-          }, { onConflict: 'id' });
-        }
+            tags: initDoc.tags || [],
+          };
+          if (initDoc.content) payload.content = initDoc.content;
+          let { error } = await supabase.from('documents').upsert(payload, { onConflict: 'id' });
+          if (error && (error.message?.includes('content') || error.code === 'PGRST204')) {
+            delete payload.content;
+            await supabase.from('documents').upsert(payload, { onConflict: 'id' });
+          }
       }
     } catch (err) {
       console.error('Bulk move documents error:', err);

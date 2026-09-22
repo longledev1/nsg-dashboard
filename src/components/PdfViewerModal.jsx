@@ -500,9 +500,9 @@ export default function PdfViewerModal({ document, onClose }) {
         </div>
 
         {/* Reader Canvas Body */}
-        <div className="flex-1 bg-[#26231f] overflow-y-auto w-full relative">
+        <div className="flex-1 w-full relative min-h-0 bg-[#26231f] flex flex-col overflow-hidden">
           {!isUrlResolved ? (
-            <div className="py-32 flex flex-col items-center justify-center gap-3 text-zinc-300">
+            <div className="py-32 flex flex-col items-center justify-center gap-3 text-zinc-300 flex-1">
               <RefreshCw className="w-7 h-7 animate-spin text-[#d0aa61]" />
               <p className="text-sm">Đang nạp dữ liệu tài liệu...</p>
             </div>
@@ -510,11 +510,11 @@ export default function PdfViewerModal({ document, onClose }) {
             /* ========================================================================= */
             /* TRÌNH ĐỌC NỘI DUNG VĂN BẢN TRÊN TRANG GIẤY A4 CHUYÊN NGHIỆP */
             /* ========================================================================= */
-            <div className="w-full py-8 px-3 sm:px-6 md:px-10 flex flex-col items-center">
+            <div className="w-full h-full overflow-y-auto py-8 px-3 sm:px-6 md:px-10 flex flex-col items-center flex-1">
               
               {/* Thông báo chế độ xem nếu PDF không có liên kết cloud */}
               {!isWord && !activeUrl && (
-                <div className="w-full max-w-4xl mb-4 p-3.5 bg-amber-500/15 border border-amber-500/30 rounded-xl flex items-center justify-between gap-3 text-amber-200 text-xs">
+                <div className="w-full max-w-4xl mb-4 p-3.5 bg-amber-500/15 border border-amber-500/30 rounded-xl flex items-center justify-between gap-3 text-amber-200 text-xs shrink-0">
                   <div className="flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
                     <span>Tệp PDF gốc được tải lên trước đó ở máy cục bộ. Đang hiển thị đầy đủ nội dung văn bản trích xuất.</span>
@@ -584,18 +584,18 @@ export default function PdfViewerModal({ document, onClose }) {
               </div>
             </div>
           ) : iframeSrc ? (
-            /* Trình đọc PDF nhúng (Tích hợp Google Docs Viewer mượt mà trên mọi thiết bị và iPad) */
-            <div className="w-full h-full relative flex flex-col">
+            /* Trình đọc PDF nhúng: dùng absolute inset-0 để tràn viền 100% khung modal */
+            <div className="absolute inset-0 w-full h-full bg-white flex flex-col">
               <iframe
                 src={iframeSrc}
                 title={document.title}
-                className="w-full flex-1 border-0 bg-white"
+                className="w-full h-full flex-1 border-0 bg-white"
                 allow="autoplay"
               />
             </div>
           ) : (
             /* Fallback xem văn bản khi PDF mất liên kết file nhị phân */
-            <div className="w-full py-8 px-4 sm:px-8 flex justify-center">
+            <div className="w-full h-full overflow-y-auto py-8 px-4 sm:px-8 flex justify-center flex-1">
               <div className="bg-white text-zinc-900 rounded-xl shadow-2xl w-full max-w-4xl p-6 sm:p-12 border border-zinc-200">
                 <WordContentRenderer 
                   content={document.content || document.description} 

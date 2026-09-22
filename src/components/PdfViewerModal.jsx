@@ -113,14 +113,14 @@ function WordContentRenderer({ content, title }) {
   );
 }
 
-export default function PdfViewerModal({ document, onClose }) {
+export default function PdfViewerModal({ document, onUpdateDocument, onClose }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [activeUrl, setActiveUrl] = useState(null);
   const [isUrlResolved, setIsUrlResolved] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isReuploading, setIsReuploading] = useState(false);
-  const [viewerMode, setViewerMode] = useState('google'); // 'google' | 'direct' | 'text'
+  const [viewerMode, setViewerMode] = useState('direct'); // 'direct' (native browser PDF) | 'google' | 'text'
   const fileInputRef = useRef(null);
 
   const isWord = document?.fileType === 'word' || 
@@ -253,6 +253,9 @@ export default function PdfViewerModal({ document, onClose }) {
       };
 
       await updateDocumentInDb(updatedDoc);
+      if (onUpdateDocument) {
+        onUpdateDocument(updatedDoc);
+      }
       if (remotePublicUrl) {
         setActiveUrl(remotePublicUrl);
       }
@@ -324,21 +327,20 @@ export default function PdfViewerModal({ document, onClose }) {
 
   const hasContentText = Boolean(document.content || document.description);
   
-  // Tính toán đường dẫn hiển thị cho iframe: ưu tiên Google Docs Viewer để xem mượt trên iPad/mọi trình duyệt
+  // Tính toán đường dẫn hiển thị cho iframe: mặc định dùng trực tiếp PDF (nhanh, nét, ổn định nhất)
   const getEmbeddedIframeSrc = () => {
     if (!activeUrl) return null;
-    if (viewerMode === 'direct') {
-      return `${activeUrl}#toolbar=1&navpanes=1&zoom=${zoomLevel}`;
+    if (viewerMode === 'google') {
+      if (activeUrl.startsWith('http://') || activeUrl.startsWith('https://')) {
+        return `https://docs.google.com/viewer?url=${encodeURIComponent(activeUrl)}&embedded=true`;
+      }
+      if (activeUrl.startsWith('/') && typeof window !== 'undefined' && window.location.origin.startsWith('http')) {
+        const fullUrl = `${window.location.origin}${activeUrl}`;
+        return `https://docs.google.com/viewer?url=${encodeURIComponent(fullUrl)}&embedded=true`;
+      }
     }
-    // Mặc định viewerMode === 'google'
-    if (activeUrl.startsWith('http://') || activeUrl.startsWith('https://')) {
-      return `https://docs.google.com/viewer?url=${encodeURIComponent(activeUrl)}&embedded=true`;
-    }
-    if (activeUrl.startsWith('/') && typeof window !== 'undefined' && window.location.origin.startsWith('http')) {
-      const fullUrl = `${window.location.origin}${activeUrl}`;
-      return `https://docs.google.com/viewer?url=${encodeURIComponent(fullUrl)}&embedded=true`;
-    }
-    return `${activeUrl}#toolbar=1&navpanes=1&zoom=${zoomLevel}`;
+    // Mặc định viewerMode === 'direct': nạp trực tiếp PDF
+    return `${activeUrl}#toolbar=1&navpanes=1`;
   };
 
   const iframeSrc = getEmbeddedIframeSrc();
@@ -399,16 +401,16 @@ export default function PdfViewerModal({ document, onClose }) {
             {activeUrl && !isWord && (
               <div className="flex items-center bg-[#454039] border border-[#5d574e] rounded-lg p-0.5 text-xs">
                 <button
-                  onClick={() => setViewerMode('google')}
-                  className={`px-2 py-1 rounded-md transition-colors cursor-pointer ${viewerMode === 'google' ? 'bg-[#d0aa61] text-[#322e29] font-bold shadow-2xs' : 'text-zinc-300 hover:text-white'}`}
-                  title="Xem tài liệu PDF qua Google Viewer (Ổn định nhất)"
+                  onClick={() => setViewerMode('direct')}
+                  className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${viewerMode === 'direct' ? 'bg-[#d0aa61] text-[#322e29] font-bold shadow-2xs' : 'text-zinc-300 hover:text-white'}`}
+                  title="Xem tài liệu PDF trực tiếp bằng trình đọc trình duyệt"
                 >
                   PDF
                 </button>
                 {hasContentText && (
                   <button
                     onClick={() => setViewerMode('text')}
-                    className={`px-2 py-1 rounded-md transition-colors cursor-pointer ${viewerMode === 'text' ? 'bg-[#d0aa61] text-[#322e29] font-bold shadow-2xs' : 'text-zinc-300 hover:text-white'}`}
+                    className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${viewerMode === 'text' ? 'bg-[#d0aa61] text-[#322e29] font-bold shadow-2xs' : 'text-zinc-300 hover:text-white'}`}
                     title="Xem bản trích xuất văn bản"
                   >
                     Văn bản
@@ -584,14 +586,19 @@ export default function PdfViewerModal({ document, onClose }) {
               </div>
             </div>
           ) : iframeSrc ? (
-            /* Trình đọc PDF nhúng: dùng absolute inset-0 để tràn viền 100% khung modal */
+            /* Trình đọc PDF nhúng: dùng object kết hợp iframe fallback chuẩn W3C */
             <div className="absolute inset-0 w-full h-full bg-white flex flex-col">
-              <iframe
-                src={iframeSrc}
-                title={document.title}
-                className="w-full h-full flex-1 border-0 bg-white"
-                allow="autoplay"
-              />
+              <object
+                data={iframeSrc}
+                type="application/pdf"
+                className="w-full h-full flex-1 border-0"
+              >
+                <iframe
+                  src={iframeSrc}
+                  title={document.title}
+                  className="w-full h-full flex-1 border-0 bg-white"
+                />
+              </object>
             </div>
           ) : (
             /* Fallback xem văn bản khi PDF mất liên kết file nhị phân */

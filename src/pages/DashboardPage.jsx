@@ -485,6 +485,10 @@ export default function DashboardPage({ user, onLogout }) {
       {selectedPdf && (
         <PdfViewerModal
           document={selectedPdf}
+          onUpdateDocument={(updated) => {
+            setSelectedPdf(updated);
+            setDocuments(prev => prev.map(d => d.id === updated.id ? { ...d, ...updated } : d));
+          }}
           onClose={() => setSelectedPdf(null)}
         />
       )}

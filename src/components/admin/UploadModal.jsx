@@ -144,19 +144,19 @@ export default function UploadModal({
         setUploadStepText(`[Tệp ${i + 1}/${files.length}] Đang tải lên & trích xuất văn bản...`);
 
         // Chạy song song cả 2 tác vụ: Trích xuất chữ AI + Tải lên Supabase Storage cùng một lúc
-        const [extractedContentResult, uploadedPublicUrlResult] = await Promise.all([
+        const [extractedContentResult, uploadStorageResult] = await Promise.all([
           extractDocumentContent(file).catch((err) => {
             console.warn('Lỗi đọc nội dung file:', err);
             return '';
           }),
           uploadPdfFileToStorage(file).catch((err) => {
             console.warn('Lỗi tải file lên storage:', err);
-            return null;
+            return { url: null, error: err.message };
           }),
         ]);
 
         const extractedContent = extractedContentResult || '';
-        const uploadedPublicUrl = uploadedPublicUrlResult || null;
+        const uploadedPublicUrl = uploadStorageResult?.url || null;
 
         // Lưu trữ thông tin vào cơ sở dữ liệu
         setProgressPercent(Math.round(((i + 0.95) / files.length) * 100));

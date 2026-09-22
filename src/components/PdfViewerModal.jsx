@@ -242,7 +242,8 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
       }
 
       // 3. Tải lên Supabase Storage bucket nsg-documents
-      const remotePublicUrl = await uploadPdfFileToStorage(file);
+      const uploadResult = await uploadPdfFileToStorage(file);
+      const remotePublicUrl = uploadResult?.url || null;
 
       // 4. Đồng bộ vào Supabase Database
       const updatedDoc = {
@@ -260,7 +261,8 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
         setActiveUrl(remotePublicUrl);
         alert('✅ Đã đồng bộ tệp lên Supabase Cloud thành công!\nTừ bây giờ điện thoại, iPad và mọi thiết bị khác đều xem được ngay lập tức.');
       } else {
-        alert('⚠️ Tệp đã được lưu vào bộ nhớ của laptop này, nhưng CHƯA đồng bộ lên Cloud Supabase Storage được.\n\n👉 Nguyên nhân: Bucket "nsg-documents" trên trang Supabase của bạn chưa được tạo hoặc chưa cấp quyền Public.\n👉 Vì vậy hiện tại chỉ có laptop này xem được, còn điện thoại/iPad sẽ báo chưa có file gốc.');
+        const errMsg = uploadResult?.error || 'Không rõ nguyên nhân';
+        alert(`⚠️ Tệp đã được lưu vào bộ nhớ của laptop này, nhưng CHƯA tải được lên Cloud Supabase Storage!\n\nLỗi từ Supabase: "${errMsg}"\n\n👉 Để sửa lỗi này: Vào Supabase -> SQL Editor và chạy lệnh cấp quyền INSERT cho bucket "nsg-documents".`);
       }
     } catch (err) {
       console.error('Lỗi khi nạp lại tệp:', err);

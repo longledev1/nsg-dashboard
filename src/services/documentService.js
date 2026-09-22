@@ -44,7 +44,7 @@ export function sanitizeFileUrl(url) {
 export async function uploadPdfFileToStorage(file) {
   if (!isSupabaseConfigured || !supabase || !file) {
     console.warn('Supabase client chưa được cấu hình hoặc tệp không hợp lệ!');
-    return null;
+    return { url: null, error: 'Chưa cấu hình biến môi trường Supabase URL/ANON KEY' };
   }
 
   try {
@@ -76,18 +76,18 @@ export async function uploadPdfFileToStorage(file) {
     const { data, error } = await Promise.race([uploadPromise, timeoutPromise]);
 
     if (error) {
-      console.warn('Lưu ý Storage Upload (có thể bucket nsg-documents chưa được tạo hoặc chưa Public):', error.message || error);
-      return null;
+      console.warn('Lỗi Storage Upload:', error.message || error);
+      return { url: null, error: error.message || String(error) };
     }
 
     const { data: publicUrlData } = supabase.storage
       .from('nsg-documents')
       .getPublicUrl(filePath);
 
-    return publicUrlData?.publicUrl || null;
+    return { url: publicUrlData?.publicUrl || null, error: null };
   } catch (err) {
     console.warn('Ngoại lệ khi tải tệp lên Supabase Storage:', err.message || err);
-    return null;
+    return { url: null, error: err.message || String(err) };
   }
 }
 

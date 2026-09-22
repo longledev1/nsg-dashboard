@@ -108,3 +108,18 @@ body {
   color: #1e293b;
 }
 
+/* Ẩn triệt để Netlify Drawer, Netlify Toolbar & Powered by Netlify Badge */
+[data-netlify-drawer],
+netlify-drawer,
+#netlify-badge,
+.netlify-badge,
+iframe[src*="netlify"],
+div[class*="netlify-drawer"],
+div[class*="NetlifyDrawer"],
+div[id*="netlify-drawer"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+

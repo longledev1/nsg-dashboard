@@ -156,7 +156,7 @@ export default function UploadModal({
         ]);
 
         const extractedContent = extractedContentResult || '';
-        let uploadedPublicUrl = uploadedPublicUrlResult || URL.createObjectURL(file);
+        const uploadedPublicUrl = uploadedPublicUrlResult || null;
 
         // Lưu trữ thông tin vào cơ sở dữ liệu
         setProgressPercent(Math.round(((i + 0.95) / files.length) * 100));

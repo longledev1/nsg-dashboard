@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Download, Maximize2, Minimize2, ZoomIn, ZoomOut, FileText, 
-  Upload, RefreshCw, Copy, Check, ExternalLink
+  Upload, RefreshCw, Copy, Check, ExternalLink, AlertCircle, FileUp, Sparkles, Eye
 } from 'lucide-react';
 import { getLocalFileUrl, saveLocalFile } from '../services/localFileStorage';
+import { sanitizeFileUrl, uploadPdfFileToStorage, updateDocumentInDb } from '../services/documentService';
+import { extractDocumentContent } from '../services/pdfExtractor';
 
 /**
  * Trình dựng nội dung văn bản Word chuyên nghiệp & thanh lịch (Structured Word Document Renderer)
@@ -118,13 +120,14 @@ export default function PdfViewerModal({ document, onClose }) {
   const [isUrlResolved, setIsUrlResolved] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isReuploading, setIsReuploading] = useState(false);
+  const [activeTab, setActiveTab] = useState('auto'); // 'pdf' | 'text' | 'auto'
   const fileInputRef = useRef(null);
 
   const isWord = document?.fileType === 'word' || 
                  document?.title?.endsWith('.doc') || 
                  document?.title?.endsWith('.docx');
 
-  // 1. Phân giải đường dẫn tệp
+  // 1. Phân giải đường dẫn tệp an toàn
   useEffect(() => {
     let isMounted = true;
     
@@ -132,7 +135,7 @@ export default function PdfViewerModal({ document, onClose }) {
       if (!document) return;
       setIsUrlResolved(false);
 
-      // 1. Lấy từ IndexedDB bền vững
+      // 1. Kiểm tra trong IndexedDB của máy hiện tại
       if (document.id) {
         try {
           const localData = await getLocalFileUrl(document.id);
@@ -146,35 +149,21 @@ export default function PdfViewerModal({ document, onClose }) {
         }
       }
 
-      const docUrl = document.fileUrl || document.file_url;
+      // 2. Phân giải URL từ Cloud / Public Static Path
+      const rawUrl = document.fileUrl || document.file_url;
+      const cleanUrl = sanitizeFileUrl(rawUrl);
 
-      // 2. Nếu là đường dẫn hợp lệ (http, https, hoặc relative public path /...)
-      if (
-        docUrl &&
-        (docUrl.startsWith('http://') ||
-          docUrl.startsWith('https://') ||
-          docUrl.startsWith('/') ||
-          docUrl.startsWith('./'))
-      ) {
-        if (isMounted) {
-          setActiveUrl(docUrl);
-          setIsUrlResolved(true);
-        }
+      if (cleanUrl && isMounted) {
+        setActiveUrl(cleanUrl);
+        setIsUrlResolved(true);
         return;
       }
 
-      // 3. Nếu là blob URL
-      if (docUrl && docUrl.startsWith('blob:')) {
-        try {
-          const res = await fetch(docUrl);
-          if (res.ok && isMounted) {
-            setActiveUrl(docUrl);
-            setIsUrlResolved(true);
-            return;
-          }
-        } catch {
-          // Blob đã thu hồi
-        }
+      // 3. Với tài liệu hồ sơ mặc định nếu mất URL, fallback về public asset
+      if (document.id === 'doc-nsg-history-profile' && isMounted) {
+        setActiveUrl('/NSG History.docx');
+        setIsUrlResolved(true);
+        return;
       }
 
       if (isMounted) {
@@ -193,15 +182,31 @@ export default function PdfViewerModal({ document, onClose }) {
   if (!document) return null;
 
   const handleDownload = () => {
-    const downloadUrl = activeUrl || document.fileUrl || document.file_url;
-    if (!downloadUrl) return;
-    const link = window.document.createElement('a');
-    link.href = downloadUrl;
-    link.download = document.title;
-    link.target = '_blank';
-    window.document.body.appendChild(link);
-    link.click();
-    window.document.body.removeChild(link);
+    const downloadUrl = activeUrl || sanitizeFileUrl(document.fileUrl || document.file_url);
+    if (downloadUrl) {
+      const link = window.document.createElement('a');
+      link.href = downloadUrl;
+      link.download = document.title;
+      link.target = '_blank';
+      window.document.body.appendChild(link);
+      link.click();
+      window.document.body.removeChild(link);
+      return;
+    }
+
+    // Nếu không có tệp nhị phân nhưng có văn bản trích xuất, xuất file text
+    const textContent = document.content || document.description;
+    if (textContent) {
+      const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = window.document.createElement('a');
+      link.href = url;
+      link.download = `${document.title.replace(/\.[^/.]+$/, "")}_NoiDung.txt`;
+      window.document.body.appendChild(link);
+      link.click();
+      window.document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
   };
 
   const handleCopyText = () => {
@@ -213,22 +218,54 @@ export default function PdfViewerModal({ document, onClose }) {
     }
   };
 
+  // Nạp lại file: Tự động lưu IndexedDB + Tải lên Supabase Storage + Cập nhật DB
   const handleReupload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
       setIsReuploading(true);
+      
+      // 1. Lưu vào IndexedDB cục bộ của thiết bị hiện tại
       await saveLocalFile(document.id, file);
-      const freshUrl = URL.createObjectURL(file);
-      setActiveUrl(freshUrl);
+      const freshBlobUrl = URL.createObjectURL(file);
+      setActiveUrl(freshBlobUrl);
+
+      // 2. Trích xuất văn bản nếu tài liệu chưa có nội dung
+      let extracted = document.content;
+      if (!extracted || extracted.length < 50) {
+        try {
+          extracted = await extractDocumentContent(file);
+        } catch (extErr) {
+          console.warn('Lỗi trích xuất chữ khi reupload:', extErr);
+        }
+      }
+
+      // 3. Tải lên Supabase Storage bucket nsg-documents
+      const remotePublicUrl = await uploadPdfFileToStorage(file);
+
+      // 4. Đồng bộ vào Supabase Database
+      const updatedDoc = {
+        ...document,
+        fileUrl: remotePublicUrl || freshBlobUrl,
+        content: extracted || document.content || document.description || '',
+        fileSize: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+      };
+
+      await updateDocumentInDb(updatedDoc);
+      if (remotePublicUrl) {
+        setActiveUrl(remotePublicUrl);
+      }
     } catch (err) {
       console.error('Lỗi khi nạp lại tệp:', err);
-      alert('Không thể lưu tệp vào bộ nhớ: ' + err.message);
+      alert('Không thể lưu tệp: ' + err.message);
     } finally {
       setIsReuploading(false);
     }
   };
+
+  const hasContentText = Boolean(document.content || document.description);
+  const showTextReader = isWord || (!activeUrl && hasContentText) || activeTab === 'text';
 
   return (
     <div 
@@ -239,7 +276,7 @@ export default function PdfViewerModal({ document, onClose }) {
         type="file" 
         ref={fileInputRef} 
         onChange={handleReupload} 
-        accept=".pdf,.doc,.docx" 
+        accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" 
         className="hidden" 
       />
 
@@ -262,21 +299,64 @@ export default function PdfViewerModal({ document, onClose }) {
               <h2 className="font-semibold text-sm text-zinc-100 truncate" title={document.title}>
                 {document.title}
               </h2>
-              <p className="text-[11px] text-zinc-300 flex items-center gap-1.5">
+              <p className="text-[11px] text-zinc-300 flex items-center gap-1.5 flex-wrap">
                 <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${
                   isWord ? 'bg-blue-600 text-white' : 'bg-red-600 text-white'
                 }`}>
                   {isWord ? 'WORD DOCX' : 'PDF DOCUMENT'}
                 </span>
                 <span>Size: {document.fileSize || 'N/A'}</span>
-                <span>&bull; Ngày tạo: {document.createdAt || 'Gần đây'}</span>
+                <span>&bull; Ngày: {document.createdAt || 'Gần đây'}</span>
+                {!activeUrl && !isWord && (
+                  <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    Trích xuất văn bản
+                  </span>
+                )}
               </p>
             </div>
           </div>
 
           {/* Action Tools */}
           <div className="flex items-center gap-2">
-            {/* Zoom Controls */}
+            {/* View Mode Toggle (Nếu có cả PDF và Nội dung chữ) */}
+            {activeUrl && !isWord && hasContentText && (
+              <div className="hidden md:flex items-center bg-[#454039] border border-[#5d574e] rounded-lg p-0.5 text-xs">
+                <button
+                  onClick={() => setActiveTab('pdf')}
+                  className={`px-2.5 py-1 rounded-md transition-colors ${activeTab !== 'text' ? 'bg-[#d0aa61] text-[#322e29] font-bold shadow-2xs' : 'text-zinc-300 hover:text-white'}`}
+                >
+                  File PDF
+                </button>
+                <button
+                  onClick={() => setActiveTab('text')}
+                  className={`px-2.5 py-1 rounded-md transition-colors ${activeTab === 'text' ? 'bg-[#d0aa61] text-[#322e29] font-bold shadow-2xs' : 'text-zinc-300 hover:text-white'}`}
+                >
+                  Văn bản
+                </button>
+              </div>
+            )}
+
+            {/* Nút Đính kèm / Nạp lại tệp PDF gốc */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isReuploading}
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 bg-[#4d4841] hover:bg-[#5d574e] text-zinc-200 text-xs rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+              title="Tải lên tệp gốc để đồng bộ"
+            >
+              {isReuploading ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#d0aa61]" />
+                  <span>Đang nạp...</span>
+                </>
+              ) : (
+                <>
+                  <FileUp className="w-3.5 h-3.5 text-[#d0aa61]" />
+                  <span>Nạp file gốc</span>
+                </>
+              )}
+            </button>
+
+            {/* Zoom Controls (Chỉ hiện khi xem) */}
             <div className="hidden sm:flex items-center gap-1 bg-[#454039] border border-[#5d574e] rounded-lg px-2 py-1 text-xs">
               <button
                 onClick={() => setZoomLevel(prev => Math.max(70, prev - 10))}
@@ -296,7 +376,7 @@ export default function PdfViewerModal({ document, onClose }) {
             </div>
 
             {/* Copy Button */}
-            {(document.content || document.description) && (
+            {hasContentText && (
               <button
                 onClick={handleCopyText}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-[#4d4841] hover:bg-[#5d574e] text-zinc-200 text-xs rounded-lg transition-colors cursor-pointer"
@@ -305,28 +385,26 @@ export default function PdfViewerModal({ document, onClose }) {
                 {copied ? (
                   <>
                     <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-emerald-300">Đã sao chép</span>
+                    <span className="text-emerald-300">Đã chép</span>
                   </>
                 ) : (
                   <>
                     <Copy className="w-3.5 h-3.5" />
-                    <span className="hidden md:inline">Sao chép chữ</span>
+                    <span className="hidden md:inline">Sao chép</span>
                   </>
                 )}
               </button>
             )}
 
             {/* Download Button */}
-            {(activeUrl || document.fileUrl || document.file_url) && (
-              <button
-                onClick={handleDownload}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#d0aa61] hover:bg-[#b89149] text-[#322e29] font-bold text-xs rounded-lg transition-colors shadow-xs cursor-pointer"
-                title="Tải tệp gốc về máy"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Tải về</span>
-              </button>
-            )}
+            <button
+              onClick={handleDownload}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#d0aa61] hover:bg-[#b89149] text-[#322e29] font-bold text-xs rounded-lg transition-colors shadow-xs cursor-pointer"
+              title="Tải tệp về máy"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Tải về</span>
+            </button>
 
             {/* Fullscreen Toggle */}
             <button
@@ -348,18 +426,37 @@ export default function PdfViewerModal({ document, onClose }) {
           </div>
         </div>
 
-        {/* Reader Canvas Body: Luôn cuộn mượt mà từ đầu trang, không dùng flex center gây tràn */}
+        {/* Reader Canvas Body */}
         <div className="flex-1 bg-[#26231f] overflow-y-auto w-full relative">
           {!isUrlResolved ? (
             <div className="py-32 flex flex-col items-center justify-center gap-3 text-zinc-300">
               <RefreshCw className="w-7 h-7 animate-spin text-[#d0aa61]" />
               <p className="text-sm">Đang nạp dữ liệu tài liệu...</p>
             </div>
-          ) : isWord ? (
+          ) : showTextReader ? (
             /* ========================================================================= */
-            /* MICROSOFT WORD DOCUMENT VIEWER: TRANG GIẤY A4 CHUYÊN NGHIỆP */
+            /* TRÌNH ĐỌC NỘI DUNG VĂN BẢN TRÊN TRANG GIẤY A4 CHUYÊN NGHIỆP */
             /* ========================================================================= */
-            <div className="w-full py-8 px-3 sm:px-6 md:px-10 flex justify-center">
+            <div className="w-full py-8 px-3 sm:px-6 md:px-10 flex flex-col items-center">
+              
+              {/* Thông báo chế độ xem nếu PDF không có liên kết cloud */}
+              {!isWord && !activeUrl && (
+                <div className="w-full max-w-4xl mb-4 p-3.5 bg-amber-500/15 border border-amber-500/30 rounded-xl flex items-center justify-between gap-3 text-amber-200 text-xs">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>Tệp PDF gốc được tải lên trước đó ở máy cục bộ. Đang hiển thị đầy đủ nội dung văn bản trích xuất.</span>
+                  </div>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isReuploading}
+                    className="shrink-0 px-3 py-1 bg-[#d0aa61] hover:bg-[#b89149] text-[#322e29] font-bold rounded-lg transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Nạp lại tệp PDF</span>
+                  </button>
+                </div>
+              )}
+
               {/* Trang giấy A4 màu trắng bao bọc toàn bộ nội dung từ đầu tới cuối */}
               <div 
                 className="bg-white text-zinc-900 rounded-xl shadow-2xl w-full max-w-4xl p-6 sm:p-12 md:p-16 border border-zinc-200 transition-transform"
@@ -372,12 +469,14 @@ export default function PdfViewerModal({ document, onClose }) {
                 {/* Header trang tài liệu */}
                 <div className="border-b-2 border-zinc-100 pb-5 mb-8 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-xs">
-                      W
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-xs ${
+                      isWord ? 'bg-blue-600' : 'bg-[#9f7a35]'
+                    }`}>
+                      {isWord ? 'W' : 'PDF'}
                     </div>
                     <div>
-                      <span className="text-[10px] font-bold tracking-wider text-blue-700 uppercase bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200">
-                        HỒ SƠ TẬP ĐOÀN NS GROUP
+                      <span className="text-[10px] font-bold tracking-wider text-[#9f7a35] uppercase bg-[#faf6ed] px-2.5 py-0.5 rounded border border-[#d0aa61]/30">
+                        TÀI LIỆU HỒ SƠ NS GROUP
                       </span>
                       <h1 className="text-lg sm:text-xl font-bold text-zinc-900 mt-1">
                         {document.title.replace(/\.[^/.]+$/, "")}
@@ -385,16 +484,30 @@ export default function PdfViewerModal({ document, onClose }) {
                     </div>
                   </div>
                   <div className="text-right text-xs text-zinc-400 font-mono hidden sm:block">
-                    <div className="font-semibold text-zinc-600">NS GROUP ARCHIVE</div>
+                    <div className="font-semibold text-zinc-600">NS GROUP PORTAL</div>
                     <div>LƯU HÀNH NỘI BỘ</div>
                   </div>
                 </div>
 
-                {/* Toàn bộ nội dung văn bản Word hiển thị hoàn hảo trên nền trắng */}
-                <WordContentRenderer 
-                  content={document.content || document.description} 
-                  title={document.title} 
-                />
+                {/* Toàn bộ nội dung văn bản Word/PDF hiển thị hoàn hảo trên nền trắng */}
+                {hasContentText ? (
+                  <WordContentRenderer 
+                    content={document.content || document.description} 
+                    title={document.title} 
+                  />
+                ) : (
+                  <div className="py-16 text-center text-zinc-500 space-y-4">
+                    <FileText className="w-12 h-12 text-zinc-300 mx-auto" />
+                    <p className="text-sm font-medium">Tài liệu này chưa có nội dung văn bản trích xuất.</p>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-4 py-2 bg-[#d0aa61] text-[#322e29] font-bold rounded-lg hover:bg-[#b89149] transition-all inline-flex items-center gap-2 cursor-pointer shadow-xs"
+                    >
+                      <Upload className="w-4 h-4" />
+                      <span>Chọn và tải tệp PDF/Word lên</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ) : activeUrl ? (
@@ -425,3 +538,4 @@ export default function PdfViewerModal({ document, onClose }) {
     </div>
   );
 }
+

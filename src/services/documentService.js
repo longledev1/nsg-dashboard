@@ -4,22 +4,63 @@ import { deleteLocalFile } from './localFileStorage';
 
 // Service xử lý Truy vấn & Lưu trữ Dữ liệu Kho Tài liệu Supabase PostgreSQL & Storage
 
+// Helper kiểm tra và chuẩn hóa đường dẫn tệp an toàn
+export function sanitizeFileUrl(url) {
+  if (!url || typeof url !== 'string') return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+
+  // 1. Tệp tĩnh nội bộ (bắt đầu bằng / hoặc ./)
+  if (trimmed.startsWith('/') || trimmed.startsWith('./')) {
+    return trimmed;
+  }
+
+  // 2. Blob URL: Chỉ hợp lệ nếu cùng Origin của phiên trình duyệt hiện tại
+  if (trimmed.startsWith('blob:')) {
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      if (trimmed.startsWith(`blob:${window.location.origin}`)) {
+        return trimmed;
+      }
+    }
+    // Blob từ localhost hoặc máy khác -> coi như không khả dụng trên cloud
+    return null;
+  }
+
+  // 3. Đường dẫn HTTP/HTTPS
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    // Nếu là localhost nhưng đang chạy trên môi trường production (Netlify, v.v.)
+    if (trimmed.includes('localhost:') && typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
+      return null;
+    }
+    return trimmed;
+  }
+
+  return null;
+}
+
 // =========================================
 // 1. TẢI TỆP LÊN SUPABASE STORAGE BUCKET ('nsg-documents')
 // =========================================
 export async function uploadPdfFileToStorage(file) {
   if (!isSupabaseConfigured || !supabase || !file) {
-    console.warn('Supabase client chưa được cấu hình!');
+    console.warn('Supabase client chưa được cấu hình hoặc tệp không hợp lệ!');
     return null;
   }
 
   try {
-    const fileExt = file.name.split('.').pop();
-    const cleanBaseName = file.name.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9]/g, '_');
+    const fileExt = file.name.split('.').pop() || 'pdf';
+    // Xóa dấu tiếng Việt và ký tự đặc biệt để tên file trên Storage luôn an toàn
+    const cleanBaseName = file.name
+      .replace(/\.[^/.]+$/, "")
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .slice(0, 60);
+
     const fileName = `${Date.now()}_${cleanBaseName}.${fileExt}`;
     const filePath = `documents/${fileName}`;
 
-    console.log('Đang upload file lên Supabase Storage:', filePath);
+    console.log('Đang tải tệp lên Supabase Storage bucket nsg-documents:', filePath);
 
     const uploadPromise = supabase.storage
       .from('nsg-documents')
@@ -29,13 +70,13 @@ export async function uploadPdfFileToStorage(file) {
       });
 
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Thao tác Upload hết thời gian chờ (Timeout 8s)')), 8000)
+      setTimeout(() => reject(new Error('Thao tác Upload hết thời gian chờ (Timeout 25s)')), 25000)
     );
 
     const { data, error } = await Promise.race([uploadPromise, timeoutPromise]);
 
     if (error) {
-      console.error('Lỗi Supabase Storage Upload:', error.message || error);
+      console.warn('Lưu ý Storage Upload (có thể bucket nsg-documents chưa được tạo hoặc chưa Public):', error.message || error);
       return null;
     }
 
@@ -45,7 +86,7 @@ export async function uploadPdfFileToStorage(file) {
 
     return publicUrlData?.publicUrl || null;
   } catch (err) {
-    console.error('Lỗi ngoại lệ khi upload Storage:', err.message || err);
+    console.warn('Ngoại lệ khi tải tệp lên Supabase Storage:', err.message || err);
     return null;
   }
 }
@@ -60,14 +101,7 @@ export async function loadCategories() {
 
   if (isSupabaseConfigured && supabase) {
     try {
-      // 1. Đảm bảo 4 danh mục mặc định luôn tồn tại trong DB
-      await supabase.from('categories').upsert([
-        { id: 'cat-profile', name: 'Hồ Sơ Năng Lực', slug: 'ho-so-nang-luc', is_default: true, color: '#9f7a35' },
-        { id: 'cat-fnb', name: 'FNB', slug: 'fnb', is_default: true, color: '#059669' },
-        { id: 'cat-estate', name: 'Estate', slug: 'estate', is_default: true, color: '#b45309' },
-        { id: 'cat-general', name: 'General', slug: 'general', is_default: true, color: '#d0aa61' }
-      ], { onConflict: 'id' });
-
+      // Chỉ đọc từ database, không tự động upsert gây lỗi 409 Conflict
       const { data, error } = await supabase.from('categories').select('*').order('created_at', { ascending: true });
       if (!error && data && data.length > 0) {
         dbCategories = data.map(c => {
@@ -122,23 +156,7 @@ export async function loadSubFolders() {
 
   if (isSupabaseConfigured && supabase) {
     try {
-      // 1. Đảm bảo danh mục mặc định tồn tại trong DB trước
-      await supabase.from('categories').upsert([
-        { id: 'cat-profile', name: 'Hồ Sơ Năng Lực', slug: 'ho-so-nang-luc', is_default: true, color: '#9f7a35' },
-        { id: 'cat-fnb', name: 'FNB', slug: 'fnb', is_default: true, color: '#059669' },
-        { id: 'cat-estate', name: 'Estate', slug: 'estate', is_default: true, color: '#b45309' },
-        { id: 'cat-general', name: 'General', slug: 'general', is_default: true, color: '#d0aa61' }
-      ], { onConflict: 'id' });
-
-      // 2. Xóa triệt để ExoCafe, Exotel & các folder con General khỏi Supabase Database nếu còn tồn tại
-      await supabase
-        .from('subfolders')
-        .delete()
-        .or('id.eq.sub-exocafe,id.eq.sub-exotel,id.eq.sub-general,id.eq.sub-general-cat-fnb,id.eq.sub-general-cat-estate,name.ilike.%ExoCafe%,name.ilike.%Exotel%,name.ilike.general')
-        .then(() => {})
-        .catch(() => {});
-
-      // 3. Tải danh sách subfolders từ Database
+      // Tải danh sách subfolders từ Database thuần túy
       const { data, error } = await supabase.from('subfolders').select('*').order('created_at', { ascending: true });
       if (!error && data) {
         dbSubFolders = data
@@ -164,7 +182,7 @@ export async function loadSubFolders() {
     }
   }
 
-  // 4. Lấy dữ liệu từ localStorage làm tầng lưu trữ dự phòng siêu tốc
+  // Lấy dữ liệu từ localStorage làm tầng lưu trữ dự phòng siêu tốc
   let localCustomSubs = [];
   try {
     const saved = localStorage.getItem('nsg_custom_subfolders');
@@ -177,7 +195,6 @@ export async function loadSubFolders() {
         !s.id?.startsWith('sub-general') &&
         s.name?.toLowerCase() !== 'general'
       );
-      // Cập nhật lại localStorage để dọn sạch các subfolder General cũ
       localStorage.setItem('nsg_custom_subfolders', JSON.stringify(localCustomSubs));
     }
   } catch (e) {
@@ -207,7 +224,7 @@ export async function loadDocuments(subFolders = []) {
           title: d.title,
           description: d.description,
           content: d.content || d.description || '',
-          fileUrl: d.file_url,
+          fileUrl: sanitizeFileUrl(d.file_url),
           fileSize: d.file_size,
           fileType: d.title.endsWith('.docx') || d.title.endsWith('.doc') ? 'word' : 'pdf',
           tags: d.tags || [],
@@ -223,7 +240,13 @@ export async function loadDocuments(subFolders = []) {
   let localDocs = [];
   try {
     const saved = localStorage.getItem('nsg_custom_documents');
-    if (saved) localDocs = JSON.parse(saved);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      localDocs = (Array.isArray(parsed) ? parsed : []).map(d => ({
+        ...d,
+        fileUrl: sanitizeFileUrl(d.fileUrl || d.file_url)
+      }));
+    }
   } catch (e) {
     console.error('Lỗi đọc localStorage documents:', e);
   }
@@ -239,6 +262,7 @@ export async function loadDocuments(subFolders = []) {
       combinedMap.set(d.id, {
         ...existing,
         ...d,
+        fileUrl: d.fileUrl || existing.fileUrl,
         content: d.content || existing.content,
         isProtected: existing.isProtected || d.id === 'doc-nsg-history-profile',
         isDefault: existing.isDefault || d.id === 'doc-nsg-history-profile',
@@ -256,6 +280,7 @@ export async function loadDocuments(subFolders = []) {
       combinedMap.set(d.id, {
         ...existing,
         ...d,
+        fileUrl: d.fileUrl || existing.fileUrl,
         categoryId: d.categoryId || existing.categoryId,
         subFolderId: d.subFolderId !== undefined ? d.subFolderId : existing.subFolderId,
         content: d.content || existing.content,

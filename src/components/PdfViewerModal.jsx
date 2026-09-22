@@ -258,6 +258,9 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
       }
       if (remotePublicUrl) {
         setActiveUrl(remotePublicUrl);
+        alert('✅ Đã đồng bộ tệp lên Supabase Cloud thành công!\nTừ bây giờ điện thoại, iPad và mọi thiết bị khác đều xem được ngay lập tức.');
+      } else {
+        alert('⚠️ Tệp đã được lưu vào bộ nhớ của laptop này, nhưng CHƯA đồng bộ lên Cloud Supabase Storage được.\n\n👉 Nguyên nhân: Bucket "nsg-documents" trên trang Supabase của bạn chưa được tạo hoặc chưa cấp quyền Public.\n👉 Vì vậy hiện tại chỉ có laptop này xem được, còn điện thoại/iPad sẽ báo chưa có file gốc.');
       }
     } catch (err) {
       console.error('Lỗi khi nạp lại tệp:', err);

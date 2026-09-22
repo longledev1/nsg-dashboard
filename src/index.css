@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-nsg-gold: #d0aa61;
+  --color-nsg-gold-hover: #b89149;
+  --color-nsg-gold-dark: #9f7a35;
+  --color-nsg-gold-light: #faf6ed;
+  --color-nsg-dark: #18181b;
+  --color-nsg-dark-surface: #27272a;
+  --color-nsg-text: #504b44;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  color: #504b44;
+}
+
+/* Custom Scrollbar for PDF & Documents Grid */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #d0aa61;
+}
+
+/* Word Document Reader Typography & Formatting */
+.word-doc-rendered h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0.35rem;
+}
+
+.word-doc-rendered h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.word-doc-rendered h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #334155;
+  margin-top: 1rem;
+  margin-bottom: 0.35rem;
+}
+
+.word-doc-rendered p {
+  margin-bottom: 0.75rem;
+  line-height: 1.7;
+  color: #334155;
+}
+
+.word-doc-rendered strong {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.word-doc-rendered ul, .word-doc-rendered ol {
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+  list-style-type: disc;
+}
+
+.word-doc-rendered ol {
+  list-style-type: decimal;
+}
+
+.word-doc-rendered li {
+  margin-bottom: 0.35rem;
+  line-height: 1.6;
+}
+
+.word-doc-rendered table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.25rem 0;
+  font-size: 0.9rem;
+}
+
+.word-doc-rendered th, .word-doc-rendered td {
+  border: 1px solid #cbd5e1;
+  padding: 0.6rem 0.85rem;
+  text-align: left;
+}
+
+.word-doc-rendered th {
+  background-color: #f8fafc;
+  font-weight: 600;
+  color: #1e293b;
+}
+

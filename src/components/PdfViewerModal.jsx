@@ -264,6 +264,64 @@ export default function PdfViewerModal({ document, onClose }) {
     }
   };
 
+  // Mở tài liệu sang Tab Google Docs / Tab Mới toàn màn hình
+  const handleOpenGoogleDocs = () => {
+    const rawUrl = activeUrl || sanitizeFileUrl(document.fileUrl || document.file_url);
+    if (rawUrl) {
+      // 1. Nếu là URL http/https online
+      if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+        const googleDocsUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(rawUrl)}&embedded=false`;
+        window.open(googleDocsUrl, '_blank', 'noopener,noreferrer');
+        return;
+      }
+
+      // 2. Nếu là đường dẫn tệp tĩnh public (như /NSG History.docx) trên hosting
+      if (rawUrl.startsWith('/') && typeof window !== 'undefined' && window.location.origin.startsWith('http')) {
+        const fullPublicUrl = `${window.location.origin}${rawUrl}`;
+        const googleDocsUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fullPublicUrl)}&embedded=false`;
+        window.open(googleDocsUrl, '_blank', 'noopener,noreferrer');
+        return;
+      }
+
+      // 3. Nếu là Blob URL -> mở trực tiếp trong tab mới của trình duyệt
+      window.open(rawUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    // 4. Nếu chỉ có văn bản trích xuất -> mở trang tab mới toàn màn hình
+    const textContent = document.content || document.description;
+    if (textContent) {
+      const newWin = window.open('', '_blank');
+      if (newWin) {
+        newWin.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="utf-8">
+              <title>${document.title}</title>
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.75; padding: 40px 20px; max-width: 900px; margin: 0 auto; color: #27272a; background: #f4f4f5; }
+                .container { background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #e4e4e7; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.08); }
+                h1 { color: #18181b; border-bottom: 2px solid #f4f4f5; padding-bottom: 16px; font-size: 24px; margin-top: 0; }
+                .meta { font-size: 13px; color: #71717a; margin-bottom: 28px; font-family: monospace; font-weight: 600; }
+                .content { white-space: pre-wrap; font-size: 15px; color: #3f3f46; word-break: break-word; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <h1>${document.title}</h1>
+                <div class="meta">NS GROUP PORTAL &bull; HỒ SƠ TẬP ĐOÀN &bull; LƯU HÀNH NỘI BỘ</div>
+                <div class="content">${textContent.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+              </div>
+            </body>
+          </html>
+        `);
+        newWin.document.close();
+      }
+    }
+  };
+
   const hasContentText = Boolean(document.content || document.description);
   const showTextReader = isWord || (!activeUrl && hasContentText) || activeTab === 'text';
 
@@ -317,7 +375,7 @@ export default function PdfViewerModal({ document, onClose }) {
           </div>
 
           {/* Action Tools */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {/* View Mode Toggle (Nếu có cả PDF và Nội dung chữ) */}
             {activeUrl && !isWord && hasContentText && (
               <div className="hidden md:flex items-center bg-[#454039] border border-[#5d574e] rounded-lg p-0.5 text-xs">
@@ -336,11 +394,22 @@ export default function PdfViewerModal({ document, onClose }) {
               </div>
             )}
 
+            {/* Nút Mở Tab Google Docs / Mở Tab Mới Toàn Màn Hình */}
+            <button
+              onClick={handleOpenGoogleDocs}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#4d4841] hover:bg-[#5d574e] text-[#d0aa61] hover:text-[#e4c27a] font-semibold text-xs rounded-lg transition-colors cursor-pointer border border-[#5d574e] shadow-2xs"
+              title="Mở sang Tab Google Docs / Tab Mới để xem toàn màn hình không bị giới hạn"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-[#d0aa61]" />
+              <span className="hidden sm:inline">Mở Tab Google</span>
+              <span className="sm:hidden">Tab mới</span>
+            </button>
+
             {/* Nút Đính kèm / Nạp lại tệp PDF gốc */}
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isReuploading}
-              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 bg-[#4d4841] hover:bg-[#5d574e] text-zinc-200 text-xs rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 bg-[#4d4841] hover:bg-[#5d574e] text-zinc-200 text-xs rounded-lg transition-colors cursor-pointer disabled:opacity-50"
               title="Tải lên tệp gốc để đồng bộ"
             >
               {isReuploading ? (

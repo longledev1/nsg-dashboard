@@ -120,7 +120,7 @@ export default function PdfViewerModal({ document, onClose }) {
   const [isUrlResolved, setIsUrlResolved] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isReuploading, setIsReuploading] = useState(false);
-  const [activeTab, setActiveTab] = useState('auto'); // 'pdf' | 'text' | 'auto'
+  const [viewerMode, setViewerMode] = useState('google'); // 'google' | 'direct' | 'text'
   const fileInputRef = useRef(null);
 
   const isWord = document?.fileType === 'word' || 
@@ -323,7 +323,26 @@ export default function PdfViewerModal({ document, onClose }) {
   };
 
   const hasContentText = Boolean(document.content || document.description);
-  const showTextReader = isWord || (!activeUrl && hasContentText) || activeTab === 'text';
+  
+  // Tính toán đường dẫn hiển thị cho iframe: ưu tiên Google Docs Viewer để xem mượt trên iPad/mọi trình duyệt
+  const getEmbeddedIframeSrc = () => {
+    if (!activeUrl) return null;
+    if (viewerMode === 'direct') {
+      return `${activeUrl}#toolbar=1&navpanes=1&zoom=${zoomLevel}`;
+    }
+    // Mặc định viewerMode === 'google'
+    if (activeUrl.startsWith('http://') || activeUrl.startsWith('https://')) {
+      return `https://docs.google.com/viewer?url=${encodeURIComponent(activeUrl)}&embedded=true`;
+    }
+    if (activeUrl.startsWith('/') && typeof window !== 'undefined' && window.location.origin.startsWith('http')) {
+      const fullUrl = `${window.location.origin}${activeUrl}`;
+      return `https://docs.google.com/viewer?url=${encodeURIComponent(fullUrl)}&embedded=true`;
+    }
+    return `${activeUrl}#toolbar=1&navpanes=1&zoom=${zoomLevel}`;
+  };
+
+  const iframeSrc = getEmbeddedIframeSrc();
+  const showTextReader = isWord || (!activeUrl && hasContentText) || viewerMode === 'text';
 
   return (
     <div 
@@ -376,21 +395,25 @@ export default function PdfViewerModal({ document, onClose }) {
 
           {/* Action Tools */}
           <div className="flex items-center gap-1.5 sm:gap-2">
-            {/* View Mode Toggle (Nếu có cả PDF và Nội dung chữ) */}
-            {activeUrl && !isWord && hasContentText && (
-              <div className="hidden md:flex items-center bg-[#454039] border border-[#5d574e] rounded-lg p-0.5 text-xs">
+            {/* View Mode Toggle Switcher */}
+            {activeUrl && !isWord && (
+              <div className="flex items-center bg-[#454039] border border-[#5d574e] rounded-lg p-0.5 text-xs">
                 <button
-                  onClick={() => setActiveTab('pdf')}
-                  className={`px-2.5 py-1 rounded-md transition-colors ${activeTab !== 'text' ? 'bg-[#d0aa61] text-[#322e29] font-bold shadow-2xs' : 'text-zinc-300 hover:text-white'}`}
+                  onClick={() => setViewerMode('google')}
+                  className={`px-2 py-1 rounded-md transition-colors cursor-pointer ${viewerMode === 'google' ? 'bg-[#d0aa61] text-[#322e29] font-bold shadow-2xs' : 'text-zinc-300 hover:text-white'}`}
+                  title="Xem tài liệu PDF qua Google Viewer (Ổn định nhất)"
                 >
-                  File PDF
+                  PDF
                 </button>
-                <button
-                  onClick={() => setActiveTab('text')}
-                  className={`px-2.5 py-1 rounded-md transition-colors ${activeTab === 'text' ? 'bg-[#d0aa61] text-[#322e29] font-bold shadow-2xs' : 'text-zinc-300 hover:text-white'}`}
-                >
-                  Văn bản
-                </button>
+                {hasContentText && (
+                  <button
+                    onClick={() => setViewerMode('text')}
+                    className={`px-2 py-1 rounded-md transition-colors cursor-pointer ${viewerMode === 'text' ? 'bg-[#d0aa61] text-[#322e29] font-bold shadow-2xs' : 'text-zinc-300 hover:text-white'}`}
+                    title="Xem bản trích xuất văn bản"
+                  >
+                    Văn bản
+                  </button>
+                )}
               </div>
             )}
 
@@ -424,25 +447,6 @@ export default function PdfViewerModal({ document, onClose }) {
                 </>
               )}
             </button>
-
-            {/* Zoom Controls (Chỉ hiện khi xem) */}
-            <div className="hidden sm:flex items-center gap-1 bg-[#454039] border border-[#5d574e] rounded-lg px-2 py-1 text-xs">
-              <button
-                onClick={() => setZoomLevel(prev => Math.max(70, prev - 10))}
-                className="p-1 text-zinc-300 hover:text-white transition-colors cursor-pointer"
-                title="Thu nhỏ"
-              >
-                <ZoomOut className="w-3.5 h-3.5" />
-              </button>
-              <span className="text-zinc-200 font-mono w-10 text-center">{zoomLevel}%</span>
-              <button
-                onClick={() => setZoomLevel(prev => Math.min(160, prev + 10))}
-                className="p-1 text-zinc-300 hover:text-white transition-colors cursor-pointer"
-                title="Phóng to"
-              >
-                <ZoomIn className="w-3.5 h-3.5" />
-              </button>
-            </div>
 
             {/* Copy Button */}
             {hasContentText && (
@@ -579,18 +583,16 @@ export default function PdfViewerModal({ document, onClose }) {
                 )}
               </div>
             </div>
-          ) : activeUrl ? (
-            /* Trình đọc PDF nhúng */
-            <iframe
-              src={`${activeUrl}#toolbar=1&navpanes=1&zoom=${zoomLevel}`}
-              title={document.title}
-              className="w-full h-full border-0"
-              style={{
-                transform: `scale(${zoomLevel / 100})`,
-                transformOrigin: 'top center',
-                transition: 'transform 0.2s ease-in-out'
-              }}
-            />
+          ) : iframeSrc ? (
+            /* Trình đọc PDF nhúng (Tích hợp Google Docs Viewer mượt mà trên mọi thiết bị và iPad) */
+            <div className="w-full h-full relative flex flex-col">
+              <iframe
+                src={iframeSrc}
+                title={document.title}
+                className="w-full flex-1 border-0 bg-white"
+                allow="autoplay"
+              />
+            </div>
           ) : (
             /* Fallback xem văn bản khi PDF mất liên kết file nhị phân */
             <div className="w-full py-8 px-4 sm:px-8 flex justify-center">

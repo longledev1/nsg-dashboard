@@ -211,3 +211,57 @@ export async function extractDocumentContent(file) {
 
   return '';
 }
+
+/**
+ * Render trang 1 của tài liệu PDF thành ảnh thu nhỏ (Thumbnail Base64 JPEG)
+ * Phục vụ hiển thị trang bìa trực quan, sinh động trên DocumentCard
+ * @param {string|File|Blob} fileOrUrl - URL đường dẫn tệp hoặc File/Blob nhị phân
+ * @param {number} targetWidth - Chiều rộng ảnh thumbnail (mặc định 380px)
+ * @returns {Promise<string|null>} DataURL ảnh JPEG hoặc null nếu lỗi
+ */
+export async function generatePdfThumbnail(fileOrUrl, targetWidth = 380) {
+  if (!fileOrUrl) return null;
+  try {
+    const pdfjsLib = await loadPdfJsLib();
+    let data;
+
+    if (typeof fileOrUrl === 'string') {
+      const response = await fetch(fileOrUrl);
+      if (!response.ok) return null;
+      data = await response.arrayBuffer();
+    } else if (fileOrUrl instanceof Blob || fileOrUrl instanceof File) {
+      data = await fileOrUrl.arrayBuffer();
+    } else {
+      return null;
+    }
+
+    const loadingTask = pdfjsLib.getDocument({ data });
+    const pdf = await loadingTask.promise;
+    if (!pdf || pdf.numPages < 1) return null;
+
+    const page = await pdf.getPage(1);
+    const unscaledViewport = page.getViewport({ scale: 1.0 });
+    const scale = targetWidth / unscaledViewport.width;
+    const viewport = page.getViewport({ scale });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.floor(viewport.width);
+    canvas.height = Math.floor(viewport.height);
+    const ctx = canvas.getContext('2d', { alpha: false });
+
+    // Đổ nền trắng bảo đảm không bị trong suốt
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    await page.render({
+      canvasContext: ctx,
+      viewport: viewport,
+    }).promise;
+
+    // Xuất ảnh JPEG chất lượng 80% (rất nhẹ ~20KB - 40KB)
+    return canvas.toDataURL('image/jpeg', 0.8);
+  } catch (err) {
+    console.warn('Lỗi khi render thumbnail trang 1 PDF:', err.message || err);
+    return null;
+  }
+}

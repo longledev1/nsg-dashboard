@@ -2,6 +2,10 @@ import React from 'react';
 import { Eye, Calendar, HardDrive, Tag, Edit2, Trash2, CheckSquare, Square, Lock, FolderOutput, Download } from 'lucide-react';
 import { sanitizeFileUrl } from '../services/documentService';
 import { getLocalFileUrl } from '../services/localFileStorage';
+import { generatePdfThumbnail } from '../services/pdfExtractor';
+
+// Bộ nhớ đệm ảnh thumbnail trang 1 trong phiên trình duyệt (0ms render)
+const thumbnailMemoryCache = new Map();
 
 export default function DocumentCard({
   document,
@@ -23,6 +27,59 @@ export default function DocumentCard({
 
   const isProtected = Boolean(document.isProtected || document.isDefault || document.id === 'doc-nsg-history-profile');
   const bgImageUrl = isWord ? '/word_background.png' : '/pdf_background.png';
+
+  // Quản lý ảnh bìa trang 1 thực tế của tệp PDF
+  const [pdfThumbnail, setPdfThumbnail] = React.useState(() => {
+    if (thumbnailMemoryCache.has(document.id)) {
+      return thumbnailMemoryCache.get(document.id);
+    }
+    try {
+      const cached = localStorage.getItem(`nsg_thumb_${document.id}`);
+      if (cached) {
+        thumbnailMemoryCache.set(document.id, cached);
+        return cached;
+      }
+    } catch (e) {}
+    return document.thumbnailUrl || document.thumbnail_url || null;
+  });
+
+  // Tự động render trang 1 của PDF ngầm và lưu vào Cache
+  React.useEffect(() => {
+    if (isWord || pdfThumbnail) return;
+
+    let isMounted = true;
+    async function loadThumbnail() {
+      let sourceUrl = sanitizeFileUrl(document.fileUrl || document.file_url);
+
+      if (!sourceUrl && document.id) {
+        try {
+          const localData = await getLocalFileUrl(document.id);
+          if (localData?.url) sourceUrl = localData.url;
+        } catch (e) {}
+      }
+
+      if (!sourceUrl) return;
+
+      try {
+        const thumb = await generatePdfThumbnail(sourceUrl, 380);
+        if (thumb && isMounted) {
+          setPdfThumbnail(thumb);
+          thumbnailMemoryCache.set(document.id, thumb);
+          try {
+            localStorage.setItem(`nsg_thumb_${document.id}`, thumb);
+          } catch (storageErr) {}
+        }
+      } catch (err) {
+        console.warn('Lỗi trích xuất thumbnail PDF:', err);
+      }
+    }
+
+    loadThumbnail();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [document.id, document.fileUrl, isWord, pdfThumbnail]);
 
   // Tải tệp trực tiếp từ Card 1 chạm
   const handleQuickDownload = async (e) => {
@@ -185,20 +242,41 @@ export default function DocumentCard({
           </div>
         )}
 
-        {/* Thumbnail Banner with Custom Background (pdf_background.png / word_background.png) */}
+        {/* Thumbnail Banner with Custom Background or Real Page 1 of PDF */}
         <div 
           onClick={() => onViewPdf(document)}
-          className="h-32 rounded-xl p-3 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all relative overflow-hidden border border-zinc-200 shadow-inner bg-cover bg-center bg-no-repeat group-hover:scale-[1.02]"
-          style={{ backgroundImage: `url('${bgImageUrl}')` }}
+          className="h-32 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all relative overflow-hidden border border-zinc-200/90 shadow-inner bg-cover bg-center bg-no-repeat group-hover:scale-[1.02] bg-[#f8f6f0]"
+          style={!pdfThumbnail ? { backgroundImage: `url('${bgImageUrl}')` } : undefined}
         >
+          {/* Ảnh trang 1 thực tế của PDF nếu có */}
+          {pdfThumbnail && (
+            <div className="absolute inset-0 w-full h-full overflow-hidden flex items-start justify-center bg-zinc-100">
+              <img
+                src={pdfThumbnail}
+                alt={document.title}
+                className="w-full h-full object-cover object-top filter brightness-[0.98] group-hover:scale-105 transition-transform duration-300"
+                loading="lazy"
+              />
+              {/* Lớp phủ chuyển sắc tinh tế làm nổi bật nút bấm và text */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
+            </div>
+          )}
+
           {/* Format Badge */}
-          <div className={`absolute top-2.5 right-2.5 px-2 py-0.5 text-white font-bold text-[9px] rounded-md uppercase shadow-xs ${
+          <div className={`absolute top-2.5 right-2.5 px-2 py-0.5 text-white font-bold text-[9px] rounded-md uppercase shadow-xs z-10 ${
             isWord ? 'bg-blue-600' : 'bg-red-600'
           }`}>
             {isWord ? 'WORD' : 'PDF'}
           </div>
+
+          {/* Badge nhỏ đánh dấu Trang 1 */}
+          {pdfThumbnail && (
+            <div className="absolute top-2.5 left-2.5 px-1.5 py-0.5 bg-black/60 backdrop-blur-xs text-[9px] font-medium text-amber-200 rounded border border-white/20 z-10 shadow-xs">
+              Trang 1
+            </div>
+          )}
           
-          <div className="bg-zinc-950/60 backdrop-blur-xs px-3 py-1.5 rounded-full border border-white/20 flex items-center gap-1.5 text-white mt-auto">
+          <div className="bg-zinc-950/70 backdrop-blur-xs px-3 py-1.5 rounded-full border border-white/25 flex items-center gap-1.5 text-white mt-auto mb-2.5 z-10 shadow-sm group-hover:bg-zinc-950/85 transition-colors">
             <Eye className="w-3.5 h-3.5 text-[#d0aa61]" />
             <span className="text-[11px] font-semibold tracking-wide">Đọc trực tiếp</span>
           </div>

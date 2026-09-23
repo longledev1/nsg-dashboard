@@ -32,7 +32,10 @@ import {
   updateDocumentInDb,
   deleteDocumentFromDb,
   bulkDeleteDocumentsFromDb,
-  bulkMoveDocumentsInDb
+  bulkMoveDocumentsInDb,
+  detectDocumentFileType,
+  sanitizeFileUrl,
+  isTouchDeviceOrIOS
 } from '../services/documentService';
 
 export default function DashboardPage({ user, onLogout }) {
@@ -413,6 +416,26 @@ export default function DashboardPage({ user, onLogout }) {
     showToast(`Đã tải tài liệu "${newDoc.title}" lên kho thành công!`, 'success');
   };
 
+  // Mở tài liệu thông minh (Smart Document Viewer)
+  // Nếu là iPad / iPhone / thiết bị di động VÀ là file PDF -> Mở trực tiếp sang Tab mới (tránh lỗi màn hình trắng của WebKit)
+  // Nếu là file Word hoặc xem trên máy tính PC -> Mở Popup Modal chuẩn A4
+  const handleViewDocument = (doc) => {
+    if (!doc) return;
+    const isWord = detectDocumentFileType(doc) === 'word';
+    const cleanUrl = sanitizeFileUrl(doc.fileUrl || doc.file_url);
+
+    if (!isWord && isTouchDeviceOrIOS() && cleanUrl) {
+      if (cleanUrl.startsWith('/') && typeof window !== 'undefined' && window.location.origin.startsWith('http')) {
+        window.open(`${window.location.origin}${cleanUrl}`, '_blank', 'noopener,noreferrer');
+      } else {
+        window.open(cleanUrl, '_blank', 'noopener,noreferrer');
+      }
+      return;
+    }
+
+    setSelectedPdf(doc);
+  };
+
   return (
     <div className="min-h-screen bg-[#fcfaf7] flex flex-col font-sans">
       
@@ -491,7 +514,7 @@ export default function DashboardPage({ user, onLogout }) {
               onClearDocSelection={handleClearDocSelection}
               onBulkMove={() => setIsMoveModalOpen(true)}
               onBulkDelete={() => setIsBulkDeleteModalOpen(true)}
-              onViewPdf={(doc) => setSelectedPdf(doc)}
+              onViewPdf={handleViewDocument}
               onEditDocument={(doc) => setEditingDocument(doc)}
               onMoveDocument={handleMoveSingleDocument}
               onDeleteDocument={(doc) => setDeletingDocument(doc)}
@@ -508,7 +531,7 @@ export default function DashboardPage({ user, onLogout }) {
         documents={documents}
         categories={categories}
         subFolders={subFolders}
-        onViewPdf={(doc) => setSelectedPdf(doc)}
+        onViewPdf={handleViewDocument}
       />
 
       {/* PDF Viewer Modal (Rendered after ChatWidget with higher z-index) */}

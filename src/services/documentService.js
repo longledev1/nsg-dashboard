@@ -49,6 +49,18 @@ export function sanitizeFileUrl(url) {
   return null;
 }
 
+/**
+ * Kiểm tra xem thiết bị hiện tại có phải iPad, iPhone hoặc thiết bị di động hay không
+ * (Trình duyệt WebKit trên iOS/iPadOS chặn PDF trong iframe)
+ */
+export function isTouchDeviceOrIOS() {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isMobileOrTablet = isIOS || /Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  return Boolean(isMobileOrTablet);
+}
+
 // =========================================
 // 1. TẢI TỆP LÊN SUPABASE STORAGE BUCKET ('nsg-documents')
 // =========================================

@@ -1,5 +1,7 @@
 import React from 'react';
-import { Eye, Calendar, HardDrive, Tag, Edit2, Trash2, CheckSquare, Square, Lock, FolderOutput } from 'lucide-react';
+import { Eye, Calendar, HardDrive, Tag, Edit2, Trash2, CheckSquare, Square, Lock, FolderOutput, Download } from 'lucide-react';
+import { sanitizeFileUrl } from '../services/documentService';
+import { getLocalFileUrl } from '../services/localFileStorage';
 
 export default function DocumentCard({
   document,
@@ -21,6 +23,58 @@ export default function DocumentCard({
 
   const isProtected = Boolean(document.isProtected || document.isDefault || document.id === 'doc-nsg-history-profile');
   const bgImageUrl = isWord ? '/word_background.png' : '/pdf_background.png';
+
+  // Tải tệp trực tiếp từ Card 1 chạm
+  const handleQuickDownload = async (e) => {
+    e.stopPropagation();
+    const rawUrl = document.fileUrl || document.file_url;
+    const cleanUrl = sanitizeFileUrl(rawUrl);
+
+    if (cleanUrl) {
+      const link = window.document.createElement('a');
+      link.href = cleanUrl;
+      link.download = document.title || 'Tai_lieu_NSG';
+      link.target = '_blank';
+      window.document.body.appendChild(link);
+      link.click();
+      window.document.body.removeChild(link);
+      return;
+    }
+
+    if (document.id) {
+      try {
+        const localData = await getLocalFileUrl(document.id);
+        if (localData?.url) {
+          const link = window.document.createElement('a');
+          link.href = localData.url;
+          link.download = document.title || 'Tai_lieu_NSG';
+          link.target = '_blank';
+          window.document.body.appendChild(link);
+          link.click();
+          window.document.body.removeChild(link);
+          return;
+        }
+      } catch (err) {
+        console.warn('Lỗi đọc file local:', err);
+      }
+    }
+
+    const textContent = document.content || document.description;
+    if (textContent) {
+      const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = window.document.createElement('a');
+      link.href = url;
+      link.download = `${(document.title || 'Tai_lieu_NSG').replace(/\.[^/.]+$/, '')}_NoiDung.txt`;
+      window.document.body.appendChild(link);
+      link.click();
+      window.document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      return;
+    }
+
+    alert('Tài liệu chưa có tệp đính kèm khả dụng để tải về.');
+  };
 
   return (
     <div className={`bg-white rounded-xl border transition-all flex flex-col justify-between group overflow-hidden relative ${
@@ -190,13 +244,29 @@ export default function DocumentCard({
           </span>
         </div>
 
-        <button
-          onClick={() => onViewPdf(document)}
-          className="flex items-center gap-1 text-xs font-semibold text-[#9f7a35] hover:text-[#b89149] px-2.5 py-1 rounded-md bg-[#faf6ed] border border-[#d0aa61]/30 hover:bg-[#d0aa61]/20 transition-all cursor-pointer"
-        >
-          <Eye className="w-3.5 h-3.5" />
-          Đọc ngay
-        </button>
+        <div className="flex items-center gap-1.5">
+          {/* Nút Tải về nhanh ngay ngoài Card */}
+          <button
+            type="button"
+            onClick={handleQuickDownload}
+            className="flex items-center gap-1 text-[11px] font-semibold text-zinc-600 hover:text-[#9f7a35] px-2 py-1 rounded-md bg-white hover:bg-[#faf6ed] border border-zinc-200 hover:border-[#d0aa61]/40 transition-all cursor-pointer shadow-2xs"
+            title="Tải tệp này về máy"
+          >
+            <Download className="w-3.5 h-3.5 text-zinc-500 hover:text-[#9f7a35]" />
+            <span className="hidden sm:inline">Tải về</span>
+          </button>
+
+          {/* Nút Đọc ngay */}
+          <button
+            type="button"
+            onClick={() => onViewPdf(document)}
+            className="flex items-center gap-1 text-xs font-semibold text-[#9f7a35] hover:text-[#b89149] px-2.5 py-1 rounded-md bg-[#faf6ed] border border-[#d0aa61]/30 hover:bg-[#d0aa61]/20 transition-all cursor-pointer shadow-2xs"
+            title="Xem tài liệu"
+          >
+            <Eye className="w-3.5 h-3.5" />
+            <span>Đọc ngay</span>
+          </button>
+        </div>
       </div>
 
     </div>

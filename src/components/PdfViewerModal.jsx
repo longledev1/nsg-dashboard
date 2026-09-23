@@ -4,7 +4,7 @@ import {
   Upload, RefreshCw, Copy, Check, ExternalLink, AlertCircle, FileUp, Sparkles, Eye
 } from 'lucide-react';
 import { getLocalFileUrl, saveLocalFile } from '../services/localFileStorage';
-import { sanitizeFileUrl, uploadPdfFileToStorage, updateDocumentInDb } from '../services/documentService';
+import { sanitizeFileUrl, uploadPdfFileToStorage, updateDocumentInDb, isTouchDeviceOrIOS } from '../services/documentService';
 import { extractDocumentContent } from '../services/pdfExtractor';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
@@ -303,26 +303,18 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
     }
   };
 
-  // Mở tài liệu sang Tab Google Docs / Tab Mới toàn màn hình
-  const handleOpenGoogleDocs = () => {
+  // Mở tài liệu trực tiếp sang Tab mới toàn màn hình (hỗ trợ tối đa cho iPad, Safari, Chrome)
+  const handleOpenNewTab = () => {
     const rawUrl = activeUrl || sanitizeFileUrl(document.fileUrl || document.file_url);
     if (rawUrl) {
-      // 1. Nếu là URL http/https online
-      if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
-        const googleDocsUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(rawUrl)}&embedded=false`;
-        window.open(googleDocsUrl, '_blank', 'noopener,noreferrer');
-        return;
-      }
-
-      // 2. Nếu là đường dẫn tệp tĩnh public (như /NSG History.docx) trên hosting
+      // 1. Nếu là đường dẫn tệp tĩnh public (như /NSG History.docx) trên hosting
       if (rawUrl.startsWith('/') && typeof window !== 'undefined' && window.location.origin.startsWith('http')) {
         const fullPublicUrl = `${window.location.origin}${rawUrl}`;
-        const googleDocsUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fullPublicUrl)}&embedded=false`;
-        window.open(googleDocsUrl, '_blank', 'noopener,noreferrer');
+        window.open(fullPublicUrl, '_blank', 'noopener,noreferrer');
         return;
       }
 
-      // 3. Nếu là Blob URL -> mở trực tiếp trong tab mới của trình duyệt
+      // 2. Mở URL online (Supabase Cloud Storage / Blob): mở trực tiếp để trình duyệt đọc PDF gốc native
       window.open(rawUrl, '_blank', 'noopener,noreferrer');
       return;
     }
@@ -455,14 +447,14 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
               </div>
             )}
 
-            {/* Nút Mở Tab Google Docs / Mở Tab Mới Toàn Màn Hình */}
+            {/* Nút Mở Tab Mới Toàn Màn Hình */}
             <button
-              onClick={handleOpenGoogleDocs}
+              onClick={handleOpenNewTab}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#4d4841] hover:bg-[#5d574e] text-[#d0aa61] hover:text-[#e4c27a] font-semibold text-xs rounded-lg transition-colors cursor-pointer border border-[#5d574e] shadow-2xs"
-              title="Mở sang Tab Google Docs / Tab Mới để xem toàn màn hình không bị giới hạn"
+              title="Mở sang Tab mới để xem toàn màn hình (khắc phục lỗi màn hình trắng iPad)"
             >
               <ExternalLink className="w-3.5 h-3.5 text-[#d0aa61]" />
-              <span className="hidden sm:inline">Mở Tab Google</span>
+              <span className="hidden sm:inline">Mở Tab Mới</span>
               <span className="sm:hidden">Tab mới</span>
             </button>
 
@@ -624,6 +616,22 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
           ) : iframeSrc ? (
             /* Trình đọc PDF nhúng: dùng object kết hợp iframe fallback chuẩn W3C */
             <div className="absolute inset-0 w-full h-full bg-white flex flex-col">
+              {/* Banner trợ giúp thông minh cho iPad / thiết bị di động */}
+              {isTouchDeviceOrIOS() && (
+                <div className="bg-[#faf6ed] border-b border-[#d0aa61]/40 px-3 sm:px-4 py-2 flex items-center justify-between gap-2 text-xs text-[#504b44] shrink-0 shadow-2xs">
+                  <span className="font-medium truncate">
+                    📱 Nếu bạn dùng <strong>iPad / Mobile</strong> và khung bên dưới bị trắng do Apple chặn, hãy mở Tab mới:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleOpenNewTab}
+                    className="px-2.5 py-1 bg-[#d0aa61] hover:bg-[#b89149] text-[#322e29] font-bold rounded-lg transition-all shadow-xs cursor-pointer shrink-0 flex items-center gap-1"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Mở Tab Mới</span>
+                  </button>
+                </div>
+              )}
               <object
                 data={iframeSrc}
                 type="application/pdf"

@@ -106,7 +106,15 @@ export function findMatchingDocs(
     });
 
     if (matchedDocsMap.size > 0) {
-      return Array.from(matchedDocsMap.values());
+      const results = Array.from(matchedDocsMap.values());
+      const isGeneralHistory = /(lịch sử|lich su|chủ tịch|chu tich|lãnh đạo|lanh dao|1955|nguồn gốc|nguon goc|ông tơ|trần tương|trần anh dũng|cối xay gió)/i.test(query || "");
+      if (!isGeneralHistory && results.length > 1) {
+        const hasSpecific = results.some((d) => d.id !== "doc-nsg-history-profile");
+        if (hasSpecific) {
+          return results.filter((d) => d.id !== "doc-nsg-history-profile");
+        }
+      }
+      return results;
     }
   }
 
@@ -223,5 +231,14 @@ export function findMatchingDocs(
     }
   });
 
-  return Array.from(finalUniqueMap.values());
+  const finalDocs = Array.from(finalUniqueMap.values());
+  const isGeneralHistory = /(lịch sử|lich su|chủ tịch|chu tich|lãnh đạo|lanh dao|1955|nguồn gốc|nguon goc|ông tơ|trần tương|trần anh dũng|cối xay gió)/i.test(query || "");
+  if (!isGeneralHistory && finalDocs.length > 1) {
+    const hasSpecific = finalDocs.some((d) => d.id !== "doc-nsg-history-profile");
+    if (hasSpecific) {
+      return finalDocs.filter((d) => d.id !== "doc-nsg-history-profile");
+    }
+  }
+
+  return finalDocs;
 }

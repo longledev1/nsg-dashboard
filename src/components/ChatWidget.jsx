@@ -532,9 +532,10 @@ export default function ChatWidget({
                               {msg.documents.map((doc) => {
                                 const isWord =
                                   doc.fileType === "word" ||
-                                  (doc.title &&
-                                    (doc.title.endsWith(".docx") ||
-                                      doc.title.endsWith(".doc")));
+                                  doc.id === "doc-nsg-history-profile" ||
+                                  (/\.docx?(\)|$|\?|\s)/i.test(doc.title || "")) ||
+                                  (/\.docx?(\?|$)/i.test(doc.fileUrl || "")) ||
+                                  (doc.title && doc.title.toLowerCase().includes(".doc"));
 
                                 return (
                                   <div

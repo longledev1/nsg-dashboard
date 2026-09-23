@@ -125,8 +125,10 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
   const fileInputRef = useRef(null);
 
   const isWord = document?.fileType === 'word' || 
-                 document?.title?.endsWith('.doc') || 
-                 document?.title?.endsWith('.docx');
+                 document?.id === 'doc-nsg-history-profile' ||
+                 (/\.docx?(\)|$|\?|\s)/i.test(document?.title || '')) ||
+                 (/\.docx?(\?|$)/i.test(document?.fileUrl || '')) ||
+                 (document?.title && document.title.toLowerCase().includes('.doc'));
 
   // 1. Phân giải đường dẫn tệp an toàn
   useEffect(() => {

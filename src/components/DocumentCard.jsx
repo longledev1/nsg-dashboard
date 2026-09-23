@@ -14,7 +14,10 @@ export default function DocumentCard({
   userRole
 }) {
   const isWord = document.fileType === 'word' || 
-                 (document.title && (document.title.endsWith('.doc') || document.title.endsWith('.docx')));
+                 document.id === 'doc-nsg-history-profile' ||
+                 (/\.docx?(\)|$|\?|\s)/i.test(document.title || '')) ||
+                 (/\.docx?(\?|$)/i.test(document.fileUrl || '')) ||
+                 (document.title && document.title.toLowerCase().includes('.doc'));
 
   const isProtected = Boolean(document.isProtected || document.isDefault || document.id === 'doc-nsg-history-profile');
   const bgImageUrl = isWord ? '/word_background.png' : '/pdf_background.png';

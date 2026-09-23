@@ -5,6 +5,17 @@ import { deleteLocalFile } from './localFileStorage';
 // Service xử lý Truy vấn & Lưu trữ Dữ liệu Kho Tài liệu Supabase PostgreSQL & Storage
 
 // Helper kiểm tra và chuẩn hóa đường dẫn tệp an toàn
+export function detectDocumentFileType(doc) {
+  if (!doc) return 'pdf';
+  if (doc.id === 'doc-nsg-history-profile') return 'word';
+  if (doc.fileType === 'word' || doc.file_type === 'word') return 'word';
+  const str = `${doc.title || ''} ${doc.fileUrl || ''} ${doc.file_url || ''}`.toLowerCase();
+  if (/\.docx?(\)|$|\?|\s)/i.test(str) || str.includes('.docx') || str.includes('.doc')) {
+    return 'word';
+  }
+  return 'pdf';
+}
+
 export function sanitizeFileUrl(url) {
   if (!url || typeof url !== 'string') return null;
   const trimmed = url.trim();
@@ -254,7 +265,7 @@ export async function loadDocuments(subFolders = []) {
           content: d.content || d.description || '',
           fileUrl: sanitizeFileUrl(d.file_url),
           fileSize: d.file_size,
-          fileType: d.title.endsWith('.docx') || d.title.endsWith('.doc') ? 'word' : 'pdf',
+          fileType: detectDocumentFileType(d),
           tags: d.tags || [],
           createdAt: d.created_at ? d.created_at.split('T')[0] : 'Vừa xong',
         }));
@@ -274,6 +285,7 @@ export async function loadDocuments(subFolders = []) {
       const parsed = JSON.parse(saved);
       localDocs = (Array.isArray(parsed) ? parsed : []).map(d => ({
         ...d,
+        fileType: detectDocumentFileType(d),
         fileUrl: sanitizeFileUrl(d.fileUrl || d.file_url)
       }));
     }
@@ -289,9 +301,11 @@ export async function loadDocuments(subFolders = []) {
   dbDocs.forEach(d => {
     if (combinedMap.has(d.id)) {
       const existing = combinedMap.get(d.id);
+      const isWord = existing.fileType === 'word' || d.fileType === 'word' || d.id === 'doc-nsg-history-profile' || detectDocumentFileType(d) === 'word';
       combinedMap.set(d.id, {
         ...existing,
         ...d,
+        fileType: isWord ? 'word' : (d.fileType || existing.fileType || 'pdf'),
         fileUrl: d.fileUrl || existing.fileUrl,
         content: d.content || existing.content,
         isProtected: existing.isProtected || d.id === 'doc-nsg-history-profile',
@@ -299,7 +313,12 @@ export async function loadDocuments(subFolders = []) {
       });
     } else {
       const isProt = d.id === 'doc-nsg-history-profile';
-      combinedMap.set(d.id, { ...d, isProtected: isProt, isDefault: isProt });
+      combinedMap.set(d.id, { 
+        ...d, 
+        fileType: detectDocumentFileType(d),
+        isProtected: isProt, 
+        isDefault: isProt 
+      });
     }
   });
 

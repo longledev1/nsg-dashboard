@@ -81,7 +81,9 @@ ${AI_CUSTOM_RULES.FORMAT_STYLE}
 
 5. ĐÍNH KÈM THẺ TRÍCH DẪN TÀI LIỆU (ẨN DƯỚI DẠNG METADATA):
    - Ở dòng cuối cùng của câu trả lời, hãy đính kèm thẻ trích dẫn tài liệu: [TÀI LIỆU: tên_tệp_chính_xác.docx] hoặc [TÀI LIỆU: tên_tệp_chính_xác.pdf] (có thể đính kèm nhiều tài liệu nếu liên quan).
-   - Với tất cả các câu hỏi về Lịch sử, Phim ảnh, Chủ tịch, Ban lãnh đạo, Thương hiệu hoặc Chiến lược NSG, luôn kết thúc bằng: [TÀI LIỆU: NSG History.docx].
+   - NGUYÊN TẮC TRÍCH DẪN CHÍNH XÁC:
+     + Khi người dùng hỏi về một DỰ ÁN, FOLDER hoặc THƯƠNG HIỆU CỤ THỂ (Ví dụ: ExoCafe, Exotel, Bãi Cồn, Pháp lý Cam Ranh...): Nếu trong kho có tệp tài liệu cụ thể của dự án đó, CHỈ trích dẫn tệp tài liệu cụ thể đó. TUYỆT ĐỐI KHÔNG trích dẫn "NSG History.docx" khi người dùng chỉ hỏi riêng về thương hiệu/dự án đó.
+     + CHỈ trích dẫn [TÀI LIỆU: NSG History.docx] khi câu hỏi hỏi trực tiếp về: Lịch sử chung tập đoàn từ 1955, Chủ tịch Trần Anh Dũng, Ban lãnh đạo công ty, di sản cối xay gió Trại Mát, hoặc khi hoàn toàn không có tài liệu riêng nào khác.
    - TUYỆT ĐỐI KHÔNG đặt thẻ [TÀI LIỆU: ...] trên các dòng gạch đầu dòng dấu '*' hoặc '-' riêng lẻ (ví dụ: không viết '* [TÀI LIỆU: ...]') để tránh hiển thị dấu sao trống.
    - ĐẶC BIỆT: Khi người dùng chỉ chào hỏi (VD: 'chào bạn', 'hello', 'hi', 'alo'), cảm ơn, tạm biệt hoặc giao tiếp xã giao: Hãy chào đón lịch sự, thân thiện, và TUYỆT ĐỐI KHÔNG ghi thẻ [TÀI LIỆU: ...] để tránh gửi kèm tài liệu không cần thiết.
 

@@ -5,7 +5,8 @@ import {
 } from 'lucide-react';
 import { getLocalFileUrl, saveLocalFile } from '../services/localFileStorage';
 import { sanitizeFileUrl, uploadPdfFileToStorage, updateDocumentInDb, isTouchDeviceOrIOS } from '../services/documentService';
-import { extractDocumentContent } from '../services/pdfExtractor';
+import { extractDocumentContent, generatePdfThumbnail } from '../services/pdfExtractor';
+import { clearDocumentThumbnailCache, setCachedDocumentThumbnail } from './DocumentCard';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 /**
@@ -266,7 +267,18 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
         }
       }
 
-      // 3. Tải lên Supabase Storage bucket nsg-documents
+      // 3. Xóa cache ảnh thumbnail cũ và trích xuất ảnh bìa mới từ file vừa nạp
+      clearDocumentThumbnailCache(document.id);
+      let freshThumb = null;
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        try {
+          freshThumb = await generatePdfThumbnail(file, 380);
+        } catch (thumbErr) {
+          console.warn('Lỗi tạo thumbnail mới khi reupload:', thumbErr);
+        }
+      }
+
+      // 4. Tải lên Supabase Storage bucket nsg-documents
       const uploadResult = await uploadPdfFileToStorage(file);
       if (uploadResult?.error || !uploadResult?.url) {
         const errMsg = uploadResult?.error || 'Không nhận được URL từ Supabase Storage';
@@ -276,12 +288,18 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
 
       const remotePublicUrl = uploadResult.url;
 
-      // 4. Đồng bộ vào Supabase Database
+      // Lưu thumbnail mới vào cache với remotePublicUrl mới
+      if (freshThumb) {
+        setCachedDocumentThumbnail(document.id, remotePublicUrl, freshThumb);
+      }
+
+      // 5. Đồng bộ vào Supabase Database
       const updatedDoc = {
         ...document,
         fileUrl: remotePublicUrl,
         content: extracted || document.content || document.description || '',
         fileSize: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+        thumbnailUrl: freshThumb || null,
       };
 
       const dbResult = await updateDocumentInDb(updatedDoc);

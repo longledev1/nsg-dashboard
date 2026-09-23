@@ -7,6 +7,65 @@ import { generatePdfThumbnail } from '../services/pdfExtractor';
 // Bộ nhớ đệm ảnh thumbnail trang 1 trong phiên trình duyệt (0ms render)
 const thumbnailMemoryCache = new Map();
 
+/**
+ * Xóa cache ảnh thumbnail của 1 tài liệu khi người dùng nạp lại file mới
+ */
+export function clearDocumentThumbnailCache(docId) {
+  if (!docId) return;
+  thumbnailMemoryCache.delete(docId);
+  try {
+    localStorage.removeItem(`nsg_thumb_${docId}`);
+  } catch (e) {}
+}
+
+/**
+ * Lưu ảnh thumbnail mới vào cache kèm fileUrl để xác thực tính mới
+ */
+export function setCachedDocumentThumbnail(docId, fileUrl, thumb) {
+  if (!docId || !thumb) return;
+  const entry = { thumb, fileUrl: fileUrl || '' };
+  thumbnailMemoryCache.set(docId, entry);
+  try {
+    localStorage.setItem(`nsg_thumb_${docId}`, JSON.stringify(entry));
+  } catch (e) {}
+}
+
+function getValidCachedThumb(docId, currentFileUrl) {
+  if (!docId) return null;
+  // 1. Kiểm tra RAM cache
+  if (thumbnailMemoryCache.has(docId)) {
+    const entry = thumbnailMemoryCache.get(docId);
+    if (entry && typeof entry === 'object') {
+      if (!currentFileUrl || !entry.fileUrl || entry.fileUrl === currentFileUrl) {
+        return entry.thumb;
+      }
+    } else if (typeof entry === 'string') {
+      return entry;
+    }
+  }
+
+  // 2. Kiểm tra LocalStorage
+  try {
+    const saved = localStorage.getItem(`nsg_thumb_${docId}`);
+    if (saved) {
+      let parsed;
+      try {
+        parsed = JSON.parse(saved);
+      } catch (err) {
+        parsed = { thumb: saved, fileUrl: '' };
+      }
+      if (parsed && parsed.thumb) {
+        if (!currentFileUrl || !parsed.fileUrl || parsed.fileUrl === currentFileUrl) {
+          thumbnailMemoryCache.set(docId, parsed);
+          return parsed.thumb;
+        }
+      }
+    }
+  } catch (e) {}
+
+  return null;
+}
+
 export default function DocumentCard({
   document,
   categoryName,
@@ -28,28 +87,32 @@ export default function DocumentCard({
   const isProtected = Boolean(document.isProtected || document.isDefault || document.id === 'doc-nsg-history-profile');
   const bgImageUrl = isWord ? '/word_background.png' : '/pdf_background.png';
 
-  // Quản lý ảnh bìa trang 1 thực tế của tệp PDF
+  const currentFileUrl = sanitizeFileUrl(document.fileUrl || document.file_url);
+
+  // Quản lý ảnh bìa trang 1 thực tế của tệp PDF (Xác thực theo fileUrl để không bị kẹt ảnh file cũ)
   const [pdfThumbnail, setPdfThumbnail] = React.useState(() => {
-    if (thumbnailMemoryCache.has(document.id)) {
-      return thumbnailMemoryCache.get(document.id);
-    }
-    try {
-      const cached = localStorage.getItem(`nsg_thumb_${document.id}`);
-      if (cached) {
-        thumbnailMemoryCache.set(document.id, cached);
-        return cached;
-      }
-    } catch (e) {}
+    const cached = getValidCachedThumb(document.id, currentFileUrl);
+    if (cached) return cached;
     return document.thumbnailUrl || document.thumbnail_url || null;
   });
 
-  // Tự động render trang 1 của PDF ngầm và lưu vào Cache
+  // Tự động render trang 1 của PDF ngầm và lưu vào Cache khi nạp file mới hoặc chưa có cache
   React.useEffect(() => {
-    if (isWord || pdfThumbnail) return;
+    if (isWord) return;
+
+    // Kiểm tra xem cache có khớp với fileUrl hiện tại không
+    const cachedThumb = getValidCachedThumb(document.id, currentFileUrl);
+    if (cachedThumb) {
+      setPdfThumbnail(cachedThumb);
+      return;
+    }
+
+    // Nếu không khớp (fileUrl đã thay đổi do nạp lại file) -> reset và render lại trang 1 của file mới
+    setPdfThumbnail(null);
 
     let isMounted = true;
     async function loadThumbnail() {
-      let sourceUrl = sanitizeFileUrl(document.fileUrl || document.file_url);
+      let sourceUrl = currentFileUrl;
 
       if (!sourceUrl && document.id) {
         try {
@@ -64,10 +127,7 @@ export default function DocumentCard({
         const thumb = await generatePdfThumbnail(sourceUrl, 380);
         if (thumb && isMounted) {
           setPdfThumbnail(thumb);
-          thumbnailMemoryCache.set(document.id, thumb);
-          try {
-            localStorage.setItem(`nsg_thumb_${document.id}`, thumb);
-          } catch (storageErr) {}
+          setCachedDocumentThumbnail(document.id, currentFileUrl, thumb);
         }
       } catch (err) {
         console.warn('Lỗi trích xuất thumbnail PDF:', err);
@@ -79,7 +139,7 @@ export default function DocumentCard({
     return () => {
       isMounted = false;
     };
-  }, [document.id, document.fileUrl, isWord, pdfThumbnail]);
+  }, [document.id, currentFileUrl, isWord]);
 
   // Tải tệp trực tiếp từ Card 1 chạm
   const handleQuickDownload = async (e) => {

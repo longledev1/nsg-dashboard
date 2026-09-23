@@ -24,6 +24,15 @@ export default function DocumentCard({
   const isProtected = Boolean(document.isProtected || document.isDefault || document.id === 'doc-nsg-history-profile');
   const bgImageUrl = isWord ? '/word_background.png' : '/pdf_background.png';
 
+  const formattedDate = React.useMemo(() => {
+    if (!document.createdAt) return 'Mới';
+    const match = String(document.createdAt).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      return `${match[3]}/${match[2]}/${match[1].slice(2)}`;
+    }
+    return String(document.createdAt).slice(0, 10);
+  }, [document.createdAt]);
+
   // Tải tệp trực tiếp từ Card 1 chạm
   const handleQuickDownload = async (e) => {
     e.stopPropagation();
@@ -232,39 +241,42 @@ export default function DocumentCard({
       </div>
 
       {/* Card Footer Meta & Action */}
-      <div className="px-4 py-3 bg-zinc-50/70 border-t border-zinc-100 flex items-center justify-between text-xs text-zinc-500">
-        <div className="flex items-center gap-3 text-[11px]">
-          <span className="flex items-center gap-1">
-            <HardDrive className="w-3 h-3 text-zinc-400" />
+      <div className="px-3.5 py-2.5 bg-zinc-50/80 border-t border-zinc-100 flex items-center justify-between gap-1.5 text-xs text-zinc-500">
+        <div className="flex items-center gap-2 text-[11px] text-zinc-500 min-w-0 shrink">
+          <span className="flex items-center gap-1 whitespace-nowrap font-medium text-zinc-600 shrink-0">
+            <HardDrive className="w-3 h-3 text-zinc-400 shrink-0" />
             {document.fileSize || 'N/A'}
           </span>
-          <span className="flex items-center gap-1">
-            <Calendar className="w-3 h-3 text-zinc-400" />
-            {document.createdAt || 'Mới'}
+          <span 
+            className="hidden sm:flex items-center gap-1 whitespace-nowrap text-zinc-400 shrink-0" 
+            title={document.createdAt ? `Ngày tải: ${document.createdAt}` : 'Mới'}
+          >
+            <Calendar className="w-3 h-3 text-zinc-400 shrink-0" />
+            {formattedDate}
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 shrink-0">
           {/* Nút Tải về nhanh ngay ngoài Card */}
           <button
             type="button"
             onClick={handleQuickDownload}
-            className="flex items-center gap-1 text-[11px] font-semibold text-zinc-600 hover:text-[#9f7a35] px-2 py-1 rounded-md bg-white hover:bg-[#faf6ed] border border-zinc-200 hover:border-[#d0aa61]/40 transition-all cursor-pointer shadow-2xs"
+            className="flex items-center gap-1 text-[11px] font-semibold text-zinc-700 hover:text-[#9f7a35] px-2 py-1 rounded-md bg-white hover:bg-[#faf6ed] border border-zinc-200 hover:border-[#d0aa61]/50 whitespace-nowrap transition-all cursor-pointer shadow-2xs shrink-0"
             title="Tải tệp này về máy"
           >
-            <Download className="w-3.5 h-3.5 text-zinc-500 hover:text-[#9f7a35]" />
-            <span className="hidden sm:inline">Tải về</span>
+            <Download className="w-3 h-3 text-zinc-500 shrink-0" />
+            <span className="whitespace-nowrap">Tải về</span>
           </button>
 
           {/* Nút Đọc ngay */}
           <button
             type="button"
             onClick={() => onViewPdf(document)}
-            className="flex items-center gap-1 text-xs font-semibold text-[#9f7a35] hover:text-[#b89149] px-2.5 py-1 rounded-md bg-[#faf6ed] border border-[#d0aa61]/30 hover:bg-[#d0aa61]/20 transition-all cursor-pointer shadow-2xs"
+            className="flex items-center gap-1 text-xs font-semibold text-[#9f7a35] hover:text-[#b89149] px-2.5 py-1 rounded-md bg-[#faf6ed] border border-[#d0aa61]/40 hover:bg-[#d0aa61]/25 whitespace-nowrap transition-all cursor-pointer shadow-2xs shrink-0"
             title="Xem tài liệu"
           >
-            <Eye className="w-3.5 h-3.5" />
-            <span>Đọc ngay</span>
+            <Eye className="w-3.5 h-3.5 shrink-0" />
+            <span className="whitespace-nowrap">Đọc ngay</span>
           </button>
         </div>
       </div>

@@ -59,6 +59,11 @@ function WideFormattedMessage({ text }) {
         const trimmed = line.trim();
         if (!trimmed) return <div key={idx} className="h-0.5" />;
 
+        // Bỏ qua hoàn toàn các dòng chỉ có dấu hoa thị hoặc bullet trống (VD: *, -, •)
+        if (/^([*-•]|\d+\.)\s*$/.test(trimmed)) {
+          return null;
+        }
+
         // Tiêu đề đề mục có emoji
         const isHeader =
           trimmed.startsWith("📌") ||
@@ -81,9 +86,10 @@ function WideFormattedMessage({ text }) {
         }
 
         // Bullet point
-        const isBullet = /^[*-]\s+/.test(trimmed);
+        const isBullet = /^[*-•]\s+/.test(trimmed);
         if (isBullet) {
-          const bulletContent = trimmed.replace(/^[*-]\s+/, "");
+          const bulletContent = trimmed.replace(/^[*-•]\s+/, "").trim();
+          if (!bulletContent) return null;
           return (
             <div
               key={idx}

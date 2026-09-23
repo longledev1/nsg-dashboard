@@ -246,7 +246,20 @@ export async function askGeminiAI(
       citedDocNames.push(match[1].trim());
     }
 
-    const cleanReplyText = replyText.replace(/\[TÀI LIỆU:\s*[^\]]+\]/gi, "").trim();
+    // Xóa thẻ trích dẫn ngầm [TÀI LIỆU: ...]
+    let cleanReplyText = replyText.replace(/\[TÀI LIỆU:\s*[^\]]+\]/gi, "");
+
+    // Xóa các dòng chỉ chứa dấu hoa thị hoặc bullet trống (VD: "* ", "*", "- ", "-")
+    cleanReplyText = cleanReplyText
+      .split("\n")
+      .filter((line) => !/^\s*([*-•]|\d+\.)?\s*$/.test(line))
+      .join("\n");
+
+    // Nếu tiêu đề "📄 Tài liệu tham khảo:" bị cô lập ở cuối bài (không còn văn bản phía sau), dọn sạch vì đã có thẻ card bên dưới
+    cleanReplyText = cleanReplyText
+      .replace(/(?:^|\n)\s*(?:📄\s*)?\*{0,2}Tài liệu tham khảo\*{0,2}:?\s*$/gi, "")
+      .trim();
+
     const isRefusal = isRefusalReply(cleanReplyText);
     const matchedDocs = isRefusal
       ? []
@@ -263,7 +276,15 @@ export async function askGeminiAI(
     // Kích hoạt Tri thức Dự phòng Ngoại tuyến nếu Gemini tạm thời bận
     const localAnswer = getLocalKnowledgeAnswer(query);
     if (localAnswer) {
-      const cleanReplyText = localAnswer.text.replace(/\[TÀI LIỆU:\s*[^\]]+\]/gi, "").trim();
+      let cleanReplyText = localAnswer.text.replace(/\[TÀI LIỆU:\s*[^\]]+\]/gi, "");
+      cleanReplyText = cleanReplyText
+        .split("\n")
+        .filter((line) => !/^\s*([*-•]|\d+\.)?\s*$/.test(line))
+        .join("\n");
+      cleanReplyText = cleanReplyText
+        .replace(/(?:^|\n)\s*(?:📄\s*)?\*{0,2}Tài liệu tham khảo\*{0,2}:?\s*$/gi, "")
+        .trim();
+
       const matchedDocs = findMatchingDocs(
         query,
         documents,

@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, LogOut, ShieldCheck, Users, Menu } from "lucide-react";
+import { Search, LogOut, ShieldCheck, Users, Menu, Brain } from "lucide-react";
 
 export default function Header({
   user,
@@ -7,6 +7,7 @@ export default function Header({
   setSearchQuery,
   onLogout,
   onOpenUserManager,
+  onOpenAiSettings,
   onToggleSidebar,
 }) {
   return (
@@ -55,6 +56,18 @@ export default function Header({
 
         {/* User Info & Actions */}
         <div className="flex items-center gap-3 sm:gap-4">
+          {/* Nút Cài đặt Bộ não AI (Chỉ hiển thị cho Admin) */}
+          {user?.role === "admin" && (
+            <button
+              onClick={onOpenAiSettings}
+              className="px-3 py-1.5 bg-[#3f3b35] hover:bg-[#d0aa61] text-[#d0aa61] hover:text-[#504b44] border border-[#d0aa61]/50 hover:border-[#d0aa61] rounded-xl transition-all flex items-center gap-1.5 text-xs font-semibold shadow-xs cursor-pointer"
+              title="Quản trị bộ não & chỉ thị bộ nhớ của AI"
+            >
+              <Brain className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden lg:inline">Bộ Não AI</span>
+            </button>
+          )}
+
           {/* Nút Quản lý Tài khoản (Chỉ hiển thị cho Admin) */}
           {user?.role === "admin" && (
             <button

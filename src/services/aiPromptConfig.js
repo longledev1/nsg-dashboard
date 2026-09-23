@@ -43,10 +43,28 @@ export function buildSystemInstruction({
   structureSummary = "",
   docContextText = "",
   historyContent = NSG_HISTORY_CONTENT,
+  aiMemories = [],
 }) {
+  const activeRemember = (aiMemories || []).filter(m => m.isActive && m.type === 'remember');
+  const activeForget = (aiMemories || []).filter(m => m.isActive && m.type === 'forget');
+
+  let memoryDirectivesText = "";
+  if (activeRemember.length > 0 || activeForget.length > 0) {
+    memoryDirectivesText = `\n======================================================================
+CHỈ THỊ CẬP NHẬT ĐẶC BIỆT TỪ BAN LÃNH ĐẠO (ĐỘ ƯU TIÊN CAO NHẤT - GHI ĐÈ LÊN TÀI LIỆU CŨ):
+======================================================================`;
+    if (activeRemember.length > 0) {
+      memoryDirectivesText += `\n★ CÁC THÔNG TIN MỚI BẮT BUỘC GHI NHỚ VÀ ÁP DỤNG:\n${activeRemember.map((m, idx) => `${idx + 1}. ${m.content}`).join('\n')}\n`;
+    }
+    if (activeForget.length > 0) {
+      memoryDirectivesText += `\n⛔ CÁC THÔNG TIN BẮT BUỘC LOẠI BỎ / CẤM ĐỀ CẬP (TUYỆT ĐỐI TUÂN THỦ):\n${activeForget.map((m, idx) => `${idx + 1}. ${m.content}`).join('\n')}\n`;
+    }
+    memoryDirectivesText += `======================================================================\n`;
+  }
+
   return `Bạn là "${AI_CUSTOM_RULES.BOT_NAME}" - Trợ lý Trí tuệ Nhân tạo Cao cấp Nội bộ của ${AI_CUSTOM_RULES.COMPANY_NAME}.
 Bạn được đào tạo chuyên sâu và nắm giữ toàn bộ kho lưu trữ hồ sơ doanh nghiệp, lịch sử di sản 70 năm (1955 - nay), bộ máy nhân sự lãnh đạo và toàn bộ các tài liệu dự án trong Kho Lưu Trữ của Tập đoàn NS Group.
-
+${memoryDirectivesText}
 ======================================================================
 CẤU TRÚC DANH MỤC & FOLDER DỰ ÁN TRONG HỆ THỐNG:
 ======================================================================

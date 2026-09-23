@@ -14,6 +14,7 @@ import EditDocumentModal from '../components/admin/EditDocumentModal';
 import MoveDocumentsModal from '../components/admin/MoveDocumentsModal';
 import MoveSubFolderModal from '../components/admin/MoveSubFolderModal';
 import ConfirmDeleteModal from '../components/admin/ConfirmDeleteModal';
+import AiSettingsModal from '../components/admin/AiSettingsModal';
 import Toast from '../components/Toast';
 
 import { 
@@ -58,6 +59,7 @@ export default function DashboardPage({ user, onLogout }) {
   // Admin Modals State
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isUserManagerOpen, setIsUserManagerOpen] = useState(false);
+  const [isAiSettingsOpen, setIsAiSettingsOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadPreSelection, setUploadPreSelection] = useState({ categoryId: '', subFolderId: '' });
   const [editingCategory, setEditingCategory] = useState(null);
@@ -428,6 +430,7 @@ export default function DashboardPage({ user, onLogout }) {
         setSearchQuery={setSearchQuery}
         onLogout={onLogout}
         onOpenUserManager={() => setIsUserManagerOpen(true)}
+        onOpenAiSettings={() => setIsAiSettingsOpen(true)}
         onToggleSidebar={() => setIsSidebarOpenMobile(prev => !prev)}
       />
 
@@ -647,6 +650,15 @@ export default function DashboardPage({ user, onLogout }) {
           isOpen={isUserManagerOpen}
           onClose={() => setIsUserManagerOpen(false)}
           currentUser={user}
+          showToast={showToast}
+        />
+      )}
+
+      {/* Admin AI Brain Memory & Directives Management Modal */}
+      {isAiSettingsOpen && (
+        <AiSettingsModal
+          isOpen={isAiSettingsOpen}
+          onClose={() => setIsAiSettingsOpen(false)}
           showToast={showToast}
         />
       )}

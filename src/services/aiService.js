@@ -7,6 +7,7 @@ import { buildSystemInstruction } from "./aiPromptConfig";
 import { getLocalKnowledgeAnswer } from "./aiFallbackKnowledge";
 import { findMatchingDocs, isRefusalReply } from "./aiDocMatcher";
 import { NSG_HISTORY_CONTENT } from "../lib/constants";
+import { loadAiMemories } from "./aiMemoryService";
 
 // Bộ lưu trữ thời gian hết hạn Rate Limit của từng Key (cooldown trong 60 giây)
 const keyRateLimitExpiryMap = new Map();
@@ -175,11 +176,13 @@ export async function askGeminiAI(
     })
     .join("\n\n");
 
-  // 4. Xây dựng System Instruction từ module cấu hình riêng
+  // 4. Xây dựng System Instruction từ module cấu hình riêng & Bộ nhớ động
+  const aiMemories = await loadAiMemories();
   const systemInstruction = buildSystemInstruction({
     structureSummary,
     docContextText,
     historyContent: NSG_HISTORY_CONTENT,
+    aiMemories,
   });
 
   const contents = [

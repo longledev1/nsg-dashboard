@@ -92,7 +92,19 @@ async function getAvailableModels(apiKey) {
     const data = await res.json();
     const available = (data.models || [])
       .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
-      .map((m) => m.name.replace(/^models\//, ""));
+      .map((m) => m.name.replace(/^models\//, ""))
+      .filter((name) => {
+        // Loại bỏ các model thử nghiệm, preview hoặc thinking có hạn mức siêu thấp (chỉ 20 lượt/ngày)
+        if (
+          name.includes("2.5") ||
+          name.includes("exp") ||
+          name.includes("preview") ||
+          name.includes("thinking")
+        ) {
+          return false;
+        }
+        return true;
+      });
 
     if (available.length > 0) {
       const priorityOrder = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"];
@@ -358,7 +370,21 @@ export async function askGeminiAI(
     }
 
     const matchedDocs = findMatchingDocs(query, documents, "", [], categories, subFolders);
-    let errorNotice = `⚠️ **Không thể kết nối với Gemini AI**: ${lastError || "Dịch vụ tạm thời bận. Vui lòng thử lại sau giây lát."}`;
+    let errorNotice = "";
+    const isQuotaError =
+      lastError &&
+      (lastError.toLowerCase().includes("quota") ||
+        lastError.toLowerCase().includes("rate") ||
+        lastError.includes("429"));
+
+    if (isQuotaError) {
+      const retryMatch = lastError.match(/retry in\s+([\d.]+)\s*s/i);
+      const retrySeconds = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) : 20;
+
+      errorNotice = `⚠️ **Hệ thống AI đang tạm thời làm nguội (Cooldown):**\n\nGói Google Gemini miễn phí giới hạn tần suất gọi nhanh (15 câu/phút). Bạn vui lòng chờ khoảng **${retrySeconds} giây** rồi gửi lại câu hỏi nhé!\n\n💡 *Mẹo sử dụng nhiều API Key:* Nhiều API Key tạo trên **cùng 1 tài khoản Google** sẽ dùng chung một hạn mức. Để xoay vòng chống nghẽn hiệu quả nhất, hãy tạo API Key từ **các tài khoản Gmail khác nhau** rồi thêm vào hệ thống.`;
+    } else {
+      errorNotice = `⚠️ **Không thể kết nối với Gemini AI**: ${lastError || "Dịch vụ tạm thời bận. Vui lòng thử lại sau giây lát."}`;
+    }
     if (matchedDocs.length > 0) {
       errorNotice += `\n\nTuy nhiên, dưới đây là các tài liệu liên quan được tìm thấy trong kho:`;
     }

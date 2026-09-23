@@ -17,9 +17,8 @@ const queryResponseCache = new Map();
 
 // Danh sách các mô hình Gemini Flash chuẩn xác & ổn định nhất đã được kiểm định
 const DEFAULT_CANDIDATE_MODELS = [
-  "gemini-3-flash-preview",
   "gemini-3.5-flash",
-  "gemini-2.5-flash",
+  "gemini-3-flash-preview",
 ];
 
 const cachedAvailableModelsMap = new Map();
@@ -167,13 +166,13 @@ export async function askGeminiAI(
     .join('\n');
 
   // Phân bổ ngữ cảnh thông minh (Smart Context Allocation):
-  // - Tài liệu trọng tâm được cấp phát TOÀN VĂN lên tới 150.000 ký tự (không sợ bị cắt cụt)
-  // - Các tài liệu khác được cấp phát lên tới 35.000 ký tự
+  // - Tài liệu trọng tâm được cấp phát TOÀN VĂN lên tới 60.000 ký tự (~15.000 tokens)
+  // - Các tài liệu khác được cấp phát lên tới 20.000 ký tự (~5.000 tokens)
   const docContextText = cleanDocs
     .filter((doc) => doc.id !== "doc-nsg-history-profile")
     .map((doc, idx) => {
       const isPriority = prioritizedDocIds.has(doc.id);
-      const charLimit = isPriority ? 150000 : 35000;
+      const charLimit = isPriority ? 60000 : 20000;
       const catName = categoryMap[doc.categoryId] || "General";
       const subName = subFolderMap[doc.subFolderId] || "Trực tiếp cấp Danh mục";
       const fullTextSnippet = doc.content && doc.content.trim()
@@ -227,7 +226,8 @@ export async function askGeminiAI(
 
     for (const modelName of candidateModels) {
       try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${currentApiKey}`;
+        const apiVersion = modelName.includes("preview") ? "v1beta" : "v1";
+        const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${modelName}:generateContent?key=${currentApiKey}`;
         const response = await fetchWithTimeout(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -238,7 +238,7 @@ export async function askGeminiAI(
               maxOutputTokens: 2500,
             },
           }),
-        }, 15000);
+        }, 35000);
 
         if (response.ok) {
           const data = await response.json();

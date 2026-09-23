@@ -12,6 +12,7 @@ import {
   Ban,
   HelpCircle,
   RefreshCw,
+  ShieldAlert,
 } from "lucide-react";
 import {
   loadAiMemories,
@@ -20,34 +21,67 @@ import {
   deleteAiMemory,
 } from "../../services/aiMemoryService";
 
-export default function AiSettingsModal({ isOpen, onClose, showToast }) {
+export default function AiSettingsModal({ isOpen, onClose, showToast, currentUser }) {
   const [activeTab, setActiveTab] = useState("remember"); // 'remember' | 'forget'
   const [memories, setMemories] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [inputText, setInputText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Tải dữ liệu bộ nhớ AI
+  // Tải dữ liệu thiết lập AI
   const fetchMemories = async (force = false) => {
     setIsLoading(true);
     try {
       const data = await loadAiMemories(force);
       setMemories(data || []);
     } catch (err) {
-      console.error("Lỗi tải bộ nhớ AI:", err);
+      console.error("Lỗi tải dữ liệu Thiết lập AI:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && currentUser?.role === "admin") {
       fetchMemories(true);
       setInputText("");
     }
-  }, [isOpen]);
+  }, [isOpen, currentUser]);
 
   if (!isOpen) return null;
+
+  // Nếu là tài khoản nhân viên (không phải Admin), hiển thị giao diện thông báo chặn nghiêm ngặt
+  if (currentUser?.role !== "admin") {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="bg-white rounded-2xl shadow-2xl border border-red-200 w-full max-w-md overflow-hidden flex flex-col p-6 text-center animate-in zoom-in-95">
+          <div className="w-16 h-16 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-4 border border-red-100 shadow-inner">
+            <ShieldAlert className="w-8 h-8" />
+          </div>
+          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-red-100 text-red-700 w-fit mx-auto mb-2 border border-red-200 uppercase tracking-wider">
+            Từ chối quyền truy cập
+          </span>
+          <h3 className="text-lg font-bold text-zinc-900 mb-2">
+            Khu Vực Thiết Lập AI Bị Khóa
+          </h3>
+          <p className="text-xs text-zinc-600 leading-relaxed mb-6">
+            Chức năng <strong>Thiết lập AI</strong> chỉ dành riêng cho Quản trị viên (Admin) của Tập đoàn NS Group để chỉ đạo tri thức và bảo mật. Tài khoản nhân viên của bạn không có quyền truy cập vào khu vực này.
+          </p>
+          <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-200 mb-5 text-[11.5px] text-zinc-500 text-left">
+            <p>• <strong>Tài khoản hiện tại</strong>: {currentUser?.name || "Nhân viên"} ({currentUser?.email || "N/A"})</p>
+            <p className="mt-1">• <strong>Vai trò hệ thống</strong>: <span className="text-amber-700 font-semibold uppercase">{currentUser?.role || "Staff"}</span> (Cần quyền ADMIN)</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full py-2.5 px-4 bg-[#504b44] hover:bg-[#3f3b35] text-white rounded-xl text-xs font-semibold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+          >
+            Đã hiểu &amp; Đóng thông báo
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const rememberList = memories.filter((m) => m.type === "remember");
   const forgetList = memories.filter((m) => m.type === "forget");
@@ -70,7 +104,7 @@ export default function AiSettingsModal({ isOpen, onClose, showToast }) {
         setInputText("");
         showToast?.(
           activeTab === "remember"
-            ? "Đã nạp thông tin mới vào bộ não AI thành công!"
+            ? "Đã nạp thông tin mới vào Thiết lập AI thành công!"
             : "Đã thiết lập chỉ thị loại bỏ thông tin thành công!",
           "success"
         );
@@ -101,7 +135,7 @@ export default function AiSettingsModal({ isOpen, onClose, showToast }) {
 
   // Xóa chỉ thị
   const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa chỉ thị này khỏi bộ não AI?")) {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa chỉ thị này khỏi Thiết lập AI?")) {
       return;
     }
 
@@ -127,7 +161,7 @@ export default function AiSettingsModal({ isOpen, onClose, showToast }) {
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-white tracking-wide">
-                  Trung Tâm Quản Trị Bộ Não AI
+                  Trung Tâm Thiết Lập AI
                 </h3>
                 <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#d0aa61]/30 text-[#f5ebd6] border border-[#d0aa61]/40">
                   Dynamic Memory &amp; Directives

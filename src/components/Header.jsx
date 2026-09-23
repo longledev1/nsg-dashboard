@@ -9,6 +9,7 @@ export default function Header({
   onOpenUserManager,
   onOpenAiSettings,
   onToggleSidebar,
+  showToast,
 }) {
   return (
     <header className="bg-[#504b44] text-white border-b border-zinc-800 sticky top-0 z-30 shadow-md">
@@ -56,17 +57,27 @@ export default function Header({
 
         {/* User Info & Actions */}
         <div className="flex items-center gap-3 sm:gap-4">
-          {/* Nút Cài đặt Bộ não AI (Chỉ hiển thị cho Admin) */}
-          {user?.role === "admin" && (
-            <button
-              onClick={onOpenAiSettings}
-              className="px-3 py-1.5 bg-[#3f3b35] hover:bg-[#d0aa61] text-[#d0aa61] hover:text-[#504b44] border border-[#d0aa61]/50 hover:border-[#d0aa61] rounded-xl transition-all flex items-center gap-1.5 text-xs font-semibold shadow-xs cursor-pointer"
-              title="Quản trị bộ não & chỉ thị bộ nhớ của AI"
-            >
-              <Brain className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden lg:inline">Bộ Não AI</span>
-            </button>
-          )}
+          {/* Nút Thiết lập AI (Hiển thị cho tất cả, nhân viên vào sẽ có thông báo chặn) */}
+          <button
+            onClick={() => {
+              if (user?.role !== "admin") {
+                showToast?.(
+                  "⚠️ Quyền truy cập bị hạn chế: Chức năng 'Thiết lập AI' chỉ dành riêng cho Quản trị viên (Admin).",
+                  "error"
+                );
+              }
+              onOpenAiSettings?.();
+            }}
+            className="px-3 py-1.5 bg-[#3f3b35] hover:bg-[#d0aa61] text-[#d0aa61] hover:text-[#504b44] border border-[#d0aa61]/50 hover:border-[#d0aa61] rounded-xl transition-all flex items-center gap-1.5 text-xs font-semibold shadow-xs cursor-pointer"
+            title={
+              user?.role === "admin"
+                ? "Thiết lập AI & Chỉ thị tri thức"
+                : "Thiết lập AI (Chỉ dành cho Quản trị viên)"
+            }
+          >
+            <Brain className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden lg:inline">Thiết lập AI</span>
+          </button>
 
           {/* Nút Quản lý Tài khoản (Chỉ hiển thị cho Admin) */}
           {user?.role === "admin" && (

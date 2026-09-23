@@ -432,6 +432,7 @@ export default function DashboardPage({ user, onLogout }) {
         onOpenUserManager={() => setIsUserManagerOpen(true)}
         onOpenAiSettings={() => setIsAiSettingsOpen(true)}
         onToggleSidebar={() => setIsSidebarOpenMobile(prev => !prev)}
+        showToast={showToast}
       />
 
       {/* Main Body Layout with Wider Container */}
@@ -654,11 +655,12 @@ export default function DashboardPage({ user, onLogout }) {
         />
       )}
 
-      {/* Admin AI Brain Memory & Directives Management Modal */}
+      {/* Admin AI Settings & Directives Management Modal */}
       {isAiSettingsOpen && (
         <AiSettingsModal
           isOpen={isAiSettingsOpen}
           onClose={() => setIsAiSettingsOpen(false)}
+          currentUser={user}
           showToast={showToast}
         />
       )}

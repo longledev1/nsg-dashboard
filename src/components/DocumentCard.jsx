@@ -24,15 +24,6 @@ export default function DocumentCard({
   const isProtected = Boolean(document.isProtected || document.isDefault || document.id === 'doc-nsg-history-profile');
   const bgImageUrl = isWord ? '/word_background.png' : '/pdf_background.png';
 
-  const formattedDate = React.useMemo(() => {
-    if (!document.createdAt) return 'Mới';
-    const match = String(document.createdAt).match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (match) {
-      return `${match[3]}/${match[2]}/${match[1].slice(2)}`;
-    }
-    return String(document.createdAt).slice(0, 10);
-  }, [document.createdAt]);
-
   // Tải tệp trực tiếp từ Card 1 chạm
   const handleQuickDownload = async (e) => {
     e.stopPropagation();
@@ -241,42 +232,41 @@ export default function DocumentCard({
       </div>
 
       {/* Card Footer Meta & Action */}
-      <div className="px-3.5 py-2.5 bg-zinc-50/80 border-t border-zinc-100 flex items-center justify-between gap-1.5 text-xs text-zinc-500">
-        <div className="flex items-center gap-2 text-[11px] text-zinc-500 min-w-0 shrink">
-          <span className="flex items-center gap-1 whitespace-nowrap font-medium text-zinc-600 shrink-0">
-            <HardDrive className="w-3 h-3 text-zinc-400 shrink-0" />
-            {document.fileSize || 'N/A'}
+      <div className="px-4 py-3 bg-zinc-50/80 border-t border-zinc-100 flex flex-col gap-2.5">
+        {/* Hàng 1: Dung lượng & Ngày tải lên đầy đủ, rõ ràng */}
+        <div className="flex items-center justify-between text-[11px] text-zinc-500">
+          <span className="flex items-center gap-1.5 whitespace-nowrap font-medium text-zinc-600">
+            <HardDrive className="w-3.5 h-3.5 text-zinc-400" />
+            <span>{document.fileSize || 'N/A'}</span>
           </span>
-          <span 
-            className="hidden sm:flex items-center gap-1 whitespace-nowrap text-zinc-400 shrink-0" 
-            title={document.createdAt ? `Ngày tải: ${document.createdAt}` : 'Mới'}
-          >
-            <Calendar className="w-3 h-3 text-zinc-400 shrink-0" />
-            {formattedDate}
+          <span className="flex items-center gap-1.5 whitespace-nowrap text-zinc-500 font-medium">
+            <Calendar className="w-3.5 h-3.5 text-zinc-400" />
+            <span>{document.createdAt || 'Mới'}</span>
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          {/* Nút Tải về nhanh ngay ngoài Card */}
+        {/* Hàng 2: Nút Tải về & Đọc ngay (Cân xứng, rộng rãi, dễ bấm trên mọi thiết bị) */}
+        <div className="grid grid-cols-2 gap-2">
+          {/* Nút Tải về */}
           <button
             type="button"
             onClick={handleQuickDownload}
-            className="flex items-center gap-1 text-[11px] font-semibold text-zinc-700 hover:text-[#9f7a35] px-2 py-1 rounded-md bg-white hover:bg-[#faf6ed] border border-zinc-200 hover:border-[#d0aa61]/50 whitespace-nowrap transition-all cursor-pointer shadow-2xs shrink-0"
+            className="flex items-center justify-center gap-1.5 py-1.5 px-2 bg-white hover:bg-[#faf6ed] text-zinc-700 hover:text-[#9f7a35] border border-zinc-200 hover:border-[#d0aa61]/50 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer shadow-2xs"
             title="Tải tệp này về máy"
           >
-            <Download className="w-3 h-3 text-zinc-500 shrink-0" />
-            <span className="whitespace-nowrap">Tải về</span>
+            <Download className="w-3.5 h-3.5 text-zinc-500" />
+            <span>Tải về</span>
           </button>
 
           {/* Nút Đọc ngay */}
           <button
             type="button"
             onClick={() => onViewPdf(document)}
-            className="flex items-center gap-1 text-xs font-semibold text-[#9f7a35] hover:text-[#b89149] px-2.5 py-1 rounded-md bg-[#faf6ed] border border-[#d0aa61]/40 hover:bg-[#d0aa61]/25 whitespace-nowrap transition-all cursor-pointer shadow-2xs shrink-0"
+            className="flex items-center justify-center gap-1.5 py-1.5 px-2 bg-[#faf6ed] hover:bg-[#d0aa61]/25 text-[#9f7a35] hover:text-[#b89149] border border-[#d0aa61]/40 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer shadow-2xs"
             title="Xem tài liệu"
           >
-            <Eye className="w-3.5 h-3.5 shrink-0" />
-            <span className="whitespace-nowrap">Đọc ngay</span>
+            <Eye className="w-3.5 h-3.5" />
+            <span>Đọc ngay</span>
           </button>
         </div>
       </div>

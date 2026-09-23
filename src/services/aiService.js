@@ -15,12 +15,10 @@ const keyRateLimitExpiryMap = new Map();
 // Bộ nhớ đệm câu trả lời (In-memory Query Cache) giúp phản hồi siêu tốc 0ms
 const queryResponseCache = new Map();
 
-// Danh sách các mô hình Gemini hợp lệ & hiện đại
+// Danh sách các mô hình Gemini Flash chuẩn xác & ổn định nhất đã được kiểm định
 const DEFAULT_CANDIDATE_MODELS = [
   "gemini-3-flash-preview",
   "gemini-3.5-flash",
-  "gemini-3.6-flash",
-  "gemini-flash-latest",
   "gemini-2.5-flash",
 ];
 
@@ -75,7 +73,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
 }
 
 /**
- * Tự động truy vấn ListModels từ Google để chọn mô hình khả dụng tốt nhất
+ * Tự động truy vấn ListModels từ Google để lọc mô hình khả dụng tốt nhất trong Whitelist
  */
 async function getAvailableModels(apiKey) {
   if (cachedAvailableModelsMap.has(apiKey)) {
@@ -86,48 +84,22 @@ async function getAvailableModels(apiKey) {
     const res = await fetchWithTimeout(
       `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
       {},
-      6000
+      5000
     );
     if (!res.ok) return DEFAULT_CANDIDATE_MODELS;
 
     const data = await res.json();
-    const available = (data.models || [])
-      .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
-      .map((m) => m.name.replace(/^models\//, ""))
-      .filter((name) => {
-        // Loại bỏ các model chuyên dụng (âm thanh, ảnh, robotics, embedding)
-        if (
-          name.includes("tts") ||
-          name.includes("image") ||
-          name.includes("transcribe") ||
-          name.includes("clip") ||
-          name.includes("robotics") ||
-          name.includes("computer-use") ||
-          name.includes("embedding") ||
-          name.includes("veo") ||
-          name.includes("banana")
-        ) {
-          return false;
-        }
-        return true;
-      });
+    const modelNames = new Set(
+      (data.models || [])
+        .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
+        .map((m) => m.name.replace(/^models\//, ""))
+    );
 
-    if (available.length > 0) {
-      const priorityOrder = [
-        "gemini-3-flash-preview",
-        "gemini-3.5-flash",
-        "gemini-3.6-flash",
-        "gemini-flash-latest",
-        "gemini-2.5-flash",
-        "gemini-pro-latest"
-      ];
-      available.sort((a, b) => {
-        let idxA = priorityOrder.findIndex((p) => a.startsWith(p));
-        let idxB = priorityOrder.findIndex((p) => b.startsWith(p));
-        return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
-      });
-      cachedAvailableModelsMap.set(apiKey, available);
-      return available;
+    // Chỉ giữ lại những model nằm trong whitelist an toàn đã được kiểm định
+    const validModels = DEFAULT_CANDIDATE_MODELS.filter((m) => modelNames.has(m));
+    if (validModels.length > 0) {
+      cachedAvailableModelsMap.set(apiKey, validModels);
+      return validModels;
     }
   } catch (err) {
     console.warn("Không thể truy vấn ListModels từ Google, dùng danh sách mặc định:", err.message);
@@ -388,12 +360,19 @@ export async function askGeminiAI(
       (lastError.toLowerCase().includes("quota") ||
         lastError.toLowerCase().includes("rate") ||
         lastError.includes("429"));
+    const isServiceBusy =
+      lastError &&
+      (lastError.includes("503") ||
+        lastError.toLowerCase().includes("high demand") ||
+        lastError.toLowerCase().includes("service unavailable"));
 
     if (isQuotaError) {
       const retryMatch = lastError.match(/retry in\s+([\d.]+)\s*s/i);
       const retrySeconds = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) : 20;
 
       errorNotice = `⚠️ **Hệ thống AI đang tạm thời làm nguội (Cooldown):**\n\nGói Google Gemini miễn phí giới hạn tần suất gọi nhanh (15 câu/phút). Bạn vui lòng chờ khoảng **${retrySeconds} giây** rồi gửi lại câu hỏi nhé!\n\n💡 *Mẹo sử dụng nhiều API Key:* Nhiều API Key tạo trên **cùng 1 tài khoản Google** sẽ dùng chung một hạn mức. Để xoay vòng chống nghẽn hiệu quả nhất, hãy tạo API Key từ **các tài khoản Gmail khác nhau** rồi thêm vào hệ thống.`;
+    } else if (isServiceBusy) {
+      errorNotice = `⚠️ **Máy chủ Google Gemini đang có lượng truy cập tăng đột biến (High Demand 503):**\n\nHệ thống AI của Google đang bị nghẽn tạm thời trong chốc lát. Bạn vui lòng bấm gửi lại câu hỏi sau vài giây nhé!`;
     } else {
       errorNotice = `⚠️ **Không thể kết nối với Gemini AI**: ${lastError || "Dịch vụ tạm thời bận. Vui lòng thử lại sau giây lát."}`;
     }

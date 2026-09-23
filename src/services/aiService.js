@@ -17,8 +17,8 @@ const queryResponseCache = new Map();
 
 // Danh sách các mô hình Gemini Flash chuẩn xác & ổn định nhất đã được kiểm định
 const DEFAULT_CANDIDATE_MODELS = [
-  "gemini-3.5-flash",
   "gemini-3-flash-preview",
+  "gemini-3.5-flash",
 ];
 
 const cachedAvailableModelsMap = new Map();
@@ -165,27 +165,41 @@ export async function askGeminiAI(
     })
     .join('\n');
 
-  // Phân bổ ngữ cảnh thông minh (Smart Context Allocation):
-  // - Tài liệu trọng tâm được cấp phát TOÀN VĂN lên tới 60.000 ký tự (~15.000 tokens)
-  // - Các tài liệu khác được cấp phát lên tới 20.000 ký tự (~5.000 tokens)
-  const docContextText = cleanDocs
-    .filter((doc) => doc.id !== "doc-nsg-history-profile")
+  // Phân bổ ngữ cảnh thông minh và siêu nhẹ (Lightweight Smart Context):
+  // - Chỉ lọc các tài liệu thực sự liên quan nhất đến câu hỏi (tối đa 2-3 tài liệu trọng tâm)
+  // - Cấp phát nội dung trích xuất gọn gàng (~4.500 ký tự) cho tài liệu trọng tâm
+  // - Các tài liệu khác chỉ hiển thị tóm lược danh mục để giảm tải tối đa cho Google Free Tier
+  const nonHistoryDocs = cleanDocs.filter((doc) => doc.id !== "doc-nsg-history-profile");
+  const priorityDocs = nonHistoryDocs.filter((doc) => prioritizedDocIds.has(doc.id)).slice(0, 3);
+  const otherDocs = nonHistoryDocs.filter((doc) => !prioritizedDocIds.has(doc.id));
+
+  const detailedDocs = priorityDocs.length > 0 ? priorityDocs : otherDocs.slice(0, 2);
+  const summaryOnlyDocs = priorityDocs.length > 0 ? otherDocs : otherDocs.slice(2);
+
+  const detailedDocsText = detailedDocs
     .map((doc, idx) => {
       const isPriority = prioritizedDocIds.has(doc.id);
-      const charLimit = isPriority ? 60000 : 20000;
       const catName = categoryMap[doc.categoryId] || "General";
       const subName = subFolderMap[doc.subFolderId] || "Trực tiếp cấp Danh mục";
       const fullTextSnippet = doc.content && doc.content.trim()
-        ? `\n   TOÀN VĂN NỘI DUNG VĂN BẢN TRÍCH XUẤT TỪ FILE ${isPriority ? '★ [TÀI LIỆU TRỌNG TÂM]' : ''}:\n"""\n${doc.content.slice(0, charLimit)}\n"""`
-        : `\n   (Tài liệu chưa có nội dung chi tiết, mô tả: "${doc.description || 'Không có'}")`;
+        ? `\n   NỘI DUNG VĂN BẢN TRÍCH XUẤT:\n"""\n${doc.content.slice(0, 4500)}\n"""`
+        : `\n   (Mô tả tệp: "${doc.description || 'Không có'}")`;
       return `--- TÀI LIỆU #${idx + 1} ${isPriority ? '★ [TRỌNG TÂM]' : ''} ---
 • Tên tệp: "${doc.title}"
-• Danh mục: "${catName}"
-• Thư mục dự án (Folder): "${subName}"
-• Định dạng: ${doc.fileType?.toUpperCase()} | Kích thước: ${doc.fileSize || "N/A"}
-• Tags: ${doc.tags && doc.tags.length > 0 ? doc.tags.join(", ") : "NSG"}${fullTextSnippet}`;
+• Danh mục: "${catName}" | Thư mục: "${subName}"
+• Định dạng: ${doc.fileType?.toUpperCase()} | Kích thước: ${doc.fileSize || "N/A"}${fullTextSnippet}`;
     })
     .join("\n\n");
+
+  const otherDocsSummaryText = summaryOnlyDocs.length > 0
+    ? `\n\nDANH MỤC CÁC TÀI LIỆU KHÁC CÓ TRONG KHO (THAM KHẢO TIÊU ĐỀ):\n` +
+      summaryOnlyDocs
+        .slice(0, 15)
+        .map((d) => `• "${d.title}" (${categoryMap[d.categoryId] || 'General'} / ${subFolderMap[d.subFolderId] || 'Gốc'})`)
+        .join("\n")
+    : "";
+
+  const docContextText = `${detailedDocsText}${otherDocsSummaryText}`;
 
   // 4. Xây dựng System Instruction từ module cấu hình riêng & Bộ nhớ động
   const aiMemories = await loadAiMemories();
@@ -259,6 +273,36 @@ export async function askGeminiAI(
             console.warn(`Key (...${currentApiKey.slice(-8)}) đạt giới hạn Quota (429). Chuyển ngay sang key tiếp theo...`);
             keyRateLimitExpiryMap.set(currentApiKey, Date.now() + 60000);
             break; // Chuyển sang key tiếp theo ngay lập tức, không thử model khác trên key này
+          }
+
+          if (errStatus === 503) {
+            console.warn(`Model ${modelName} đang quá tải tạm thời (503). Chờ 1.5s và tự động thử lại...`);
+            await new Promise((r) => setTimeout(r, 1500));
+            try {
+              const retryRes = await fetchWithTimeout(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  contents,
+                  generationConfig: {
+                    temperature: 0.3,
+                    maxOutputTokens: 2500,
+                  },
+                }),
+              }, 30000);
+              if (retryRes.ok) {
+                const retryData = await retryRes.json();
+                replyText = retryData?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (replyText) {
+                  console.log(`✅ Kết nối AI thành công sau khi tự động thử lại model: ${modelName}`);
+                  keyRateLimitExpiryMap.delete(currentApiKey);
+                  currentKeyIndex = (apiKeys.indexOf(currentApiKey) + 1) % apiKeys.length;
+                  break;
+                }
+              }
+            } catch (retryErr) {
+              lastError = retryErr.message;
+            }
           }
         }
       } catch (e) {

@@ -85,6 +85,11 @@ export async function uploadPdfFileToStorage(file) {
 
     console.log('Đang tải tệp lên Supabase Storage bucket nsg-documents:', filePath);
 
+    // Tính toán thời gian chờ linh hoạt: tối thiểu 3 phút (180s) và tăng thêm theo kích thước tệp (25s/MB)
+    const fileSizeMb = (file.size || 0) / (1024 * 1024);
+    const timeoutMs = Math.max(180000, Math.ceil(fileSizeMb * 25000));
+    const timeoutSeconds = Math.round(timeoutMs / 1000);
+
     const uploadPromise = supabase.storage
       .from('nsg-documents')
       .upload(filePath, file, {
@@ -93,7 +98,7 @@ export async function uploadPdfFileToStorage(file) {
       });
 
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Thao tác Upload hết thời gian chờ (Timeout 25s)')), 25000)
+      setTimeout(() => reject(new Error(`Thao tác Upload hết thời gian chờ (Timeout ${timeoutSeconds}s)`)), timeoutMs)
     );
 
     const { data, error } = await Promise.race([uploadPromise, timeoutPromise]);

@@ -282,7 +282,12 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
       const uploadResult = await uploadPdfFileToStorage(file);
       if (uploadResult?.error || !uploadResult?.url) {
         const errMsg = uploadResult?.error || 'Không nhận được URL từ Supabase Storage';
-        alert(`❌ Tệp đã lưu tạm trên máy này, nhưng CHƯA thể tải lên Cloud Storage Supabase!\n\nLỗi từ Supabase: "${errMsg}"\n\n👉 Bạn hãy vào Supabase SQL Editor chạy câu lệnh cấp quyền cho Storage bucket 'nsg-documents'.`);
+        const isTimeout = errMsg.toLowerCase().includes('thời gian chờ') || errMsg.toLowerCase().includes('timeout');
+        if (isTimeout) {
+          alert(`⚠️ Tệp tin tải lên bị hết thời gian chờ!\n\nChi tiết: "${errMsg}"\n\n👉 File có thể có dung lượng nặng hoặc đường truyền mạng bị chậm/chập chờn. Bạn vui lòng kiểm tra kết nối mạng và thử nạp lại nhé!`);
+        } else {
+          alert(`❌ Tệp đã lưu tạm trên máy này, nhưng CHƯA thể tải lên Cloud Storage Supabase!\n\nLỗi từ Supabase: "${errMsg}"\n\n👉 Bạn hãy vào Supabase SQL Editor chạy câu lệnh cấp quyền cho Storage bucket 'nsg-documents'.`);
+        }
         return;
       }
 

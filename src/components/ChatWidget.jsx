@@ -308,6 +308,7 @@ export default function ChatWidget({
         sender: "bot",
         text: aiResult.text,
         documents: aiResult.documents || [],
+        suggestions: aiResult.suggestions || [],
         timestamp: new Date().toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
@@ -611,6 +612,29 @@ export default function ChatWidget({
                           </div>
                         )}
                       </div>
+
+                      {/* Follow-up Suggestion Chips */}
+                      {msg.sender === "bot" && msg.suggestions && msg.suggestions.length > 0 && (
+                        <div className="pt-0.5 space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#9f7a35]">
+                            <Sparkles className="w-3 h-3 text-[#d0aa61]" />
+                            <span>Gợi ý câu hỏi tiếp theo:</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {msg.suggestions.map((sug, sIdx) => (
+                              <button
+                                key={sIdx}
+                                onClick={() => handleSend(sug)}
+                                disabled={isLoadingAI || isQuotaExhausted}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11.5px] font-medium bg-[#fcf8f0] hover:bg-[#f5ebd6] text-[#78591a] border border-[#d0aa61]/45 hover:border-[#d0aa61] rounded-full transition-all duration-150 hover:shadow-2xs cursor-pointer active:scale-[0.98] text-left"
+                              >
+                                <ArrowRight className="w-2.5 h-2.5 text-[#d0aa61] shrink-0" />
+                                <span>{sug}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       <div
                         className={`text-[10.5px] text-zinc-400 px-1 ${

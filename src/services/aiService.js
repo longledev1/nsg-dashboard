@@ -129,6 +129,19 @@ export async function askGeminiAI(
   (documents || []).forEach(d => { if (d && d.id) uniqueDocsMap.set(d.id, d); });
   const cleanDocs = Array.from(uniqueDocsMap.values());
 
+  // Nhận diện tài liệu trọng tâm liên quan trực tiếp đến câu hỏi để cấp phát toàn văn không cắt ngắn
+  const preMatchedDocs = findMatchingDocs(query, cleanDocs, "", [], categories, subFolders);
+  const prioritizedDocIds = new Set((preMatchedDocs || []).map(d => d.id));
+
+  // Bổ sung các tài liệu khớp từ khóa câu hỏi vào danh sách ưu tiên
+  const queryTokens = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+  cleanDocs.forEach(d => {
+    const docFullStr = `${d.title || ''} ${d.tags?.join(' ') || ''}`.toLowerCase();
+    if (queryTokens.some(tok => docFullStr.includes(tok))) {
+      prioritizedDocIds.add(d.id);
+    }
+  });
+
   const categoryMap = categories.reduce((acc, c) => ({ ...acc, [c.id]: c.name }), {});
   const subFolderMap = subFolders.reduce((acc, s) => ({ ...acc, [s.id]: s.name }), {});
 
@@ -140,15 +153,20 @@ export async function askGeminiAI(
     })
     .join('\n');
 
+  // Phân bổ ngữ cảnh thông minh (Smart Context Allocation):
+  // - Tài liệu trọng tâm được cấp phát TOÀN VĂN lên tới 150.000 ký tự (không sợ bị cắt cụt)
+  // - Các tài liệu khác được cấp phát lên tới 35.000 ký tự
   const docContextText = cleanDocs
     .filter((doc) => doc.id !== "doc-nsg-history-profile")
     .map((doc, idx) => {
+      const isPriority = prioritizedDocIds.has(doc.id);
+      const charLimit = isPriority ? 150000 : 35000;
       const catName = categoryMap[doc.categoryId] || "General";
       const subName = subFolderMap[doc.subFolderId] || "Trực tiếp cấp Danh mục";
       const fullTextSnippet = doc.content && doc.content.trim()
-        ? `\n   TOÀN VĂN NỘI DUNG VĂN BẢN TRÍCH XUẤT TỪ FILE:\n"""\n${doc.content.slice(0, 12000)}\n"""`
+        ? `\n   TOÀN VĂN NỘI DUNG VĂN BẢN TRÍCH XUẤT TỪ FILE ${isPriority ? '★ [TÀI LIỆU TRỌNG TÂM]' : ''}:\n"""\n${doc.content.slice(0, charLimit)}\n"""`
         : `\n   (Tài liệu chưa có nội dung chi tiết, mô tả: "${doc.description || 'Không có'}")`;
-      return `--- TÀI LIỆU #${idx + 1} ---
+      return `--- TÀI LIỆU #${idx + 1} ${isPriority ? '★ [TRỌNG TÂM]' : ''} ---
 • Tên tệp: "${doc.title}"
 • Danh mục: "${catName}"
 • Thư mục dự án (Folder): "${subName}"
@@ -239,6 +257,24 @@ export async function askGeminiAI(
 
   // 6. Xử lý kết quả trả về & Đính kèm tài liệu phù hợp
   if (replyText) {
+    // Trích xuất gợi ý câu hỏi tiếp theo [GỢI Ý: ...]
+    const suggestions = [];
+    const suggestionRegex = /\[(?:GỢI Ý|SUGGESTIONS?):\s*([^\]]+)\]/i;
+    const sugMatch = replyText.match(suggestionRegex);
+    if (sugMatch) {
+      const rawItems = sugMatch[1].split(/[|;\n]+/);
+      rawItems.forEach((item) => {
+        const trimmed = item.trim().replace(/^[-*•\d.]+\s*/, '');
+        if (
+          trimmed.length >= 6 &&
+          trimmed.length <= 120 &&
+          !trimmed.toLowerCase().includes("tài liệu")
+        ) {
+          suggestions.push(trimmed);
+        }
+      });
+    }
+
     const citedDocNames = [];
     const citationRegex = /\[TÀI LIỆU:\s*([^\]]+)\]/gi;
     let match;
@@ -246,8 +282,10 @@ export async function askGeminiAI(
       citedDocNames.push(match[1].trim());
     }
 
-    // Xóa thẻ trích dẫn ngầm [TÀI LIỆU: ...]
-    let cleanReplyText = replyText.replace(/\[TÀI LIỆU:\s*[^\]]+\]/gi, "");
+    // Xóa thẻ trích dẫn ngầm [TÀI LIỆU: ...] và thẻ [GỢI Ý: ...]
+    let cleanReplyText = replyText
+      .replace(/\[(?:GỢI Ý|SUGGESTIONS?):\s*[^\]]+\]/gi, "")
+      .replace(/\[TÀI LIỆU:\s*[^\]]+\]/gi, "");
 
     // Xóa các dòng chỉ chứa dấu hoa thị hoặc bullet trống (VD: "* ", "*", "- ", "-")
     cleanReplyText = cleanReplyText
@@ -268,6 +306,7 @@ export async function askGeminiAI(
     const finalResult = {
       text: cleanReplyText,
       documents: matchedDocs,
+      suggestions: isRefusal ? [] : suggestions.slice(0, 3),
     };
 
     queryResponseCache.set(cacheKey, finalResult);

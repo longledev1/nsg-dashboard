@@ -17,10 +17,11 @@ const queryResponseCache = new Map();
 
 // Danh sách các mô hình Gemini hợp lệ & hiện đại
 const DEFAULT_CANDIDATE_MODELS = [
-  "gemini-2.0-flash",
-  "gemini-1.5-flash",
-  "gemini-1.5-flash-8b",
-  "gemini-1.5-pro",
+  "gemini-3-flash-preview",
+  "gemini-3.5-flash",
+  "gemini-3.6-flash",
+  "gemini-flash-latest",
+  "gemini-2.5-flash",
 ];
 
 const cachedAvailableModelsMap = new Map();
@@ -94,12 +95,17 @@ async function getAvailableModels(apiKey) {
       .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
       .map((m) => m.name.replace(/^models\//, ""))
       .filter((name) => {
-        // Loại bỏ các model thử nghiệm, preview hoặc thinking có hạn mức siêu thấp (chỉ 20 lượt/ngày)
+        // Loại bỏ các model chuyên dụng (âm thanh, ảnh, robotics, embedding)
         if (
-          name.includes("2.5") ||
-          name.includes("exp") ||
-          name.includes("preview") ||
-          name.includes("thinking")
+          name.includes("tts") ||
+          name.includes("image") ||
+          name.includes("transcribe") ||
+          name.includes("clip") ||
+          name.includes("robotics") ||
+          name.includes("computer-use") ||
+          name.includes("embedding") ||
+          name.includes("veo") ||
+          name.includes("banana")
         ) {
           return false;
         }
@@ -107,7 +113,14 @@ async function getAvailableModels(apiKey) {
       });
 
     if (available.length > 0) {
-      const priorityOrder = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"];
+      const priorityOrder = [
+        "gemini-3-flash-preview",
+        "gemini-3.5-flash",
+        "gemini-3.6-flash",
+        "gemini-flash-latest",
+        "gemini-2.5-flash",
+        "gemini-pro-latest"
+      ];
       available.sort((a, b) => {
         let idxA = priorityOrder.findIndex((p) => a.startsWith(p));
         let idxB = priorityOrder.findIndex((p) => b.startsWith(p));
@@ -223,18 +236,22 @@ export async function askGeminiAI(
   let lastError = null;
   const now = Date.now();
 
-  const sortedApiKeys = [...apiKeys].sort((a, b) => {
+  // Tạo danh sách key theo thứ tự xoay vòng (round-robin)
+  const orderedKeys = [];
+  for (let i = 0; i < apiKeys.length; i++) {
+    orderedKeys.push(apiKeys[(currentKeyIndex + i) % apiKeys.length]);
+  }
+  // Đưa các key đang bị Rate Limit tạm thời về cuối danh sách
+  orderedKeys.sort((a, b) => {
     const isLimitedA = (keyRateLimitExpiryMap.get(a) || 0) > now ? 1 : 0;
     const isLimitedB = (keyRateLimitExpiryMap.get(b) || 0) > now ? 1 : 0;
     return isLimitedA - isLimitedB;
   });
 
   // 5. Gửi yêu cầu qua Gemini API với cơ chế tự động xoay vòng Key
-  for (let keyAttempt = 0; keyAttempt < sortedApiKeys.length; keyAttempt++) {
-    const activeKeyIndex = (currentKeyIndex + keyAttempt) % sortedApiKeys.length;
-    const currentApiKey = sortedApiKeys[activeKeyIndex];
+  for (let keyAttempt = 0; keyAttempt < orderedKeys.length; keyAttempt++) {
+    const currentApiKey = orderedKeys[keyAttempt];
     const candidateModels = await getAvailableModels(currentApiKey);
-    let keyExhausted = false;
 
     for (const modelName of candidateModels) {
       try {
@@ -249,15 +266,15 @@ export async function askGeminiAI(
               maxOutputTokens: 2500,
             },
           }),
-        }, 20000);
+        }, 15000);
 
         if (response.ok) {
           const data = await response.json();
           replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
           if (replyText) {
-            console.log(`✅ Kết nối AI thành công qua model: ${modelName}`);
+            console.log(`✅ Kết nối AI thành công qua model: ${modelName} (Key ...${currentApiKey.slice(-8)})`);
             keyRateLimitExpiryMap.delete(currentApiKey);
-            currentKeyIndex = activeKeyIndex;
+            currentKeyIndex = (apiKeys.indexOf(currentApiKey) + 1) % apiKeys.length;
             break;
           }
         } else {
@@ -267,14 +284,9 @@ export async function askGeminiAI(
           lastError = errMsg;
 
           if (errStatus === 429 || errMsg.toLowerCase().includes("quota")) {
-            console.warn(`Key #${activeKeyIndex + 1} đạt giới hạn Quota (429). Đang chuyển key...`);
+            console.warn(`Key (...${currentApiKey.slice(-8)}) đạt giới hạn Quota (429). Chuyển ngay sang key tiếp theo...`);
             keyRateLimitExpiryMap.set(currentApiKey, Date.now() + 60000);
-            if (sortedApiKeys.length > 1) {
-              keyExhausted = true;
-              break;
-            }
-            await new Promise((res) => setTimeout(res, 1000));
-            continue;
+            break; // Chuyển sang key tiếp theo ngay lập tức, không thử model khác trên key này
           }
         }
       } catch (e) {

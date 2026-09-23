@@ -61,6 +61,19 @@ export function getGeminiApiKeys() {
 }
 
 /**
+ * Hàm fetch an toàn kèm Timeout (ngắt kết nối sau timeoutMs để tránh treo giao diện)
+ */
+async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * Tự động truy vấn ListModels từ Google để chọn mô hình khả dụng tốt nhất
  */
 async function getAvailableModels(apiKey) {
@@ -69,8 +82,10 @@ async function getAvailableModels(apiKey) {
   }
 
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+      {},
+      6000
     );
     if (!res.ok) return DEFAULT_CANDIDATE_MODELS;
 
@@ -212,7 +227,7 @@ export async function askGeminiAI(
     for (const modelName of candidateModels) {
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${currentApiKey}`;
-        const response = await fetch(url, {
+        const response = await fetchWithTimeout(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -222,7 +237,7 @@ export async function askGeminiAI(
               maxOutputTokens: 2500,
             },
           }),
-        });
+        }, 20000);
 
         if (response.ok) {
           const data = await response.json();

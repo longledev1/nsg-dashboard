@@ -1,12 +1,10 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect } from 'react';
 import WelcomePage from './pages/WelcomePage';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import SplashScreen from './components/SplashScreen';
 import { loadDocumentById } from './services/documentService';
 import { FileText, ExternalLink, RefreshCw } from 'lucide-react';
-
-const PdfViewerModal = lazy(() => import('./components/PdfViewerModal'));
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -32,7 +30,7 @@ export default function App() {
   const [loadingSharedDoc, setLoadingSharedDoc] = useState(false);
   const [sharedDocError, setSharedDocError] = useState(null);
 
-  // Xử lý link chia sẻ ?docId=... cho người ngoài
+  // Xử lý link chia sẻ ?docId=... cho người ngoài (Cách 2: Mở thẳng file gốc trực tiếp từ Cloud Storage)
   useEffect(() => {
     if (user) return; // Nếu đã đăng nhập thì DashboardPage tự xử lý
 
@@ -54,7 +52,27 @@ export default function App() {
             targetUrl = `${window.location.origin}${targetUrl}`;
           }
 
-          setSharedDocInfo({ doc, rawUrl: targetUrl });
+          if (targetUrl && (targetUrl.startsWith('http://') || targetUrl.startsWith('https://'))) {
+            setSharedDocInfo({ doc, rawUrl: targetUrl });
+
+            const isWord = doc.fileType === 'word' || 
+                           doc.id === 'doc-nsg-history-profile' ||
+                           (/\.docx?(\)|$|\?|\s)/i.test(doc.title || '')) ||
+                           (/\.docx?(\)|$|\?|\s)/i.test(targetUrl));
+
+            if (isWord) {
+              // File Word: Mở qua Microsoft Office Viewer (Hỗ trợ 100% tab ẩn danh, không bị lỗi 401 của Google)
+              const msViewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(targetUrl)}`;
+              window.location.replace(msViewerUrl);
+            } else {
+              // File PDF: Mở thẳng file PDF gốc từ Supabase CDN sang trình đọc native của trình duyệt (Cách 2)
+              // Tab ẩn danh mở mượt 100%, không cần Google Docs Viewer
+              window.location.replace(targetUrl);
+            }
+          } else {
+            setSharedDocInfo({ doc, rawUrl: null });
+            setSharedDocError('Tài liệu chưa có tệp đính kèm khả dụng để xem.');
+          }
         })
         .catch((err) => {
           console.error('Lỗi nạp tài liệu chia sẻ:', err);
@@ -93,30 +111,15 @@ export default function App() {
       );
     }
 
-    // Màn hình xem tài liệu chia sẻ cho khách ngoài (Xem trực tiếp trong app, không qua Google Docs Viewer bị lỗi 401 ẩn danh)
-    if (sharedDocInfo?.doc) {
-      return (
-        <div className="min-h-screen bg-[#fcfaf7]">
-          <Suspense fallback={
-            <div className="fixed inset-0 flex items-center justify-center bg-white z-50">
-              <div className="w-8 h-8 border-3 border-[#d0aa61] border-t-transparent rounded-full animate-spin" />
-            </div>
-          }>
-            <PdfViewerModal
-              document={sharedDocInfo.doc}
-              onClose={() => {
-                setSharedDocInfo(null);
-                if (typeof window !== 'undefined') {
-                  window.history.replaceState({}, '', window.location.pathname);
-                }
-              }}
-            />
-          </Suspense>
-        </div>
-      );
-    }
+    // Màn hình chuyển tiếp mở tệp trực tiếp sang tab xem (Cách 2)
+    if (loadingSharedDoc || sharedDocInfo || sharedDocError) {
+      const isWord = sharedDocInfo?.doc?.fileType === 'word' ||
+                     sharedDocInfo?.doc?.id === 'doc-nsg-history-profile' ||
+                     (/\.docx?(\)|$|\?|\s)/i.test(sharedDocInfo?.doc?.title || ''));
+      const directUrl = isWord && sharedDocInfo?.rawUrl
+        ? `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(sharedDocInfo.rawUrl)}`
+        : sharedDocInfo?.rawUrl;
 
-    if (loadingSharedDoc || sharedDocError) {
       return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#f7f5f0] text-zinc-800 p-4">
           {/* Vùng chuyển sắc trang trí vàng đồng nhẹ nhàng phía sau */}
@@ -133,14 +136,27 @@ export default function App() {
                 NS GROUP &bull; TÀI LIỆU CHIA SẺ
               </span>
               <h3 className="text-base sm:text-lg font-bold text-zinc-900 mt-2 line-clamp-2">
-                {loadingSharedDoc ? 'Đang kết nối tài liệu...' : 'Không thể mở tài liệu'}
+                {sharedDocInfo?.doc?.title || 'Đang mở tài liệu...'}
               </h3>
             </div>
 
             {loadingSharedDoc ? (
               <div className="flex items-center justify-center gap-2.5 text-zinc-500 text-xs py-3">
                 <RefreshCw className="w-4 h-4 animate-spin text-[#d0aa61]" />
-                <span>Đang kết nối hệ thống tài liệu NSG...</span>
+                <span>Đang kết nối kho tài liệu NSG...</span>
+              </div>
+            ) : directUrl ? (
+              <div className="space-y-3 pt-1">
+                <p className="text-xs text-zinc-500 leading-relaxed">
+                  Đang tự động chuyển hướng mở tài liệu trên trình duyệt...
+                </p>
+                <a
+                  href={directUrl}
+                  className="w-full py-3 px-4 bg-[#d0aa61] hover:bg-[#b89149] text-[#26231f] font-bold text-xs rounded-xl transition-all shadow-xs hover:shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+                >
+                  <ExternalLink className="w-4 h-4 text-[#26231f]" />
+                  <span>Bấm vào đây để mở tài liệu ngay</span>
+                </a>
               </div>
             ) : (
               <div className="py-2.5 text-xs text-red-600 bg-red-50 p-3 rounded-xl border border-red-200">

@@ -69,8 +69,8 @@ export default function SplashScreen({ onFinish }) {
 
       {/* Subtle Bottom Branding */}
       <div className="absolute bottom-8 text-center">
-        <p className="text-[11px] text-slate-300 font-medium tracking-widest uppercase">
-          Tập đoàn Nam Sông Gành
+        <p className="text-[11px] text-slate-400 font-semibold tracking-widest uppercase">
+          NS GROUP
         </p>
       </div>
     </div>

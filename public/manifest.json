@@ -1,7 +1,7 @@
 {
   "name": "NSG Corporate Profile & Portal",
   "short_name": "NSG Portal",
-  "description": "Cổng thông tin & Kho tài liệu nội bộ Tập đoàn NSG",
+  "description": "Cổng thông tin & Kho tài liệu nội bộ NS GROUP",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

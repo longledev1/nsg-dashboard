@@ -1,5 +1,5 @@
 // Service Worker cho PWA NSG Corporate Profile & Portal
-const CACHE_NAME = 'nsg-portal-v2';
+const CACHE_NAME = 'nsg-portal-v3';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -22,7 +22,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate Event
+// Activate Event - Dọn dẹp cache cũ
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -34,22 +34,32 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch Event (Network First for API & Data, Cache Fallback for Static Assets)
+// Fetch Event
 self.addEventListener('fetch', (event) => {
-  // Chỉ cache các request GET
+  // Chỉ xử lý các request GET
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
 
-  // Không cache request Supabase hoặc API bên ngoài
-  if (url.hostname.includes('supabase.co') || url.pathname.startsWith('/rest/')) {
+  // TUYỆT ĐỐI KHÔNG can thiệp các request API bên ngoài (Google Gemini AI, Supabase, Google Fonts...)
+  if (url.origin !== self.location.origin) {
     return;
   }
 
+  // Không can thiệp các request nội bộ của Vite Dev server (HMR, modules, ...)
+  if (
+    url.pathname.startsWith('/@') || 
+    url.pathname.includes('/node_modules/') || 
+    url.pathname.startsWith('/rest/')
+  ) {
+    return;
+  }
+
+  // Xử lý request tài nguyên nội bộ: Network First, Fallback to Cache
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Nếu fetch thành công, clone lưu vào cache cho các static assets
+        // Lưu cache các asset tĩnh cùng origin khi fetch thành công
         if (response.status === 200 && response.type === 'basic') {
           const responseToCache = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -58,9 +68,22 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       })
-      .catch(() => {
-        // Khi mất mạng, trả về cache đã lưu
-        return caches.match(event.request);
+      .catch(async () => {
+        // 1. Thử tìm trong cache (bỏ qua query params như ?cat=...&folder=...)
+        const cached = await caches.match(event.request, { ignoreSearch: true });
+        if (cached) return cached;
+
+        // 2. Nếu là navigation request (tải trang HTML), trả về cache của trang chủ '/'
+        if (event.request.mode === 'navigate') {
+          const rootCached = await caches.match('/');
+          if (rootCached) return rootCached;
+        }
+
+        // 3. Fallback an toàn (tránh lỗi TypeError: Failed to convert value to 'Response')
+        return new Response('Network error occurred', {
+          status: 408,
+          headers: { 'Content-Type': 'text/plain' },
+        });
       })
   );
 });

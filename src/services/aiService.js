@@ -17,8 +17,9 @@ const queryResponseCache = new Map();
 
 // Danh sách các mô hình Gemini Flash chuẩn xác & ổn định nhất đã được kiểm định
 const DEFAULT_CANDIDATE_MODELS = [
+  "gemini-2.5-flash",
   "gemini-3-flash-preview",
-  "gemini-3.5-flash",
+  "gemini-1.5-flash",
 ];
 
 const cachedAvailableModelsMap = new Map();
@@ -240,7 +241,7 @@ export async function askGeminiAI(
 
     for (const modelName of candidateModels) {
       try {
-        const apiVersion = modelName.includes("preview") ? "v1beta" : "v1";
+        const apiVersion = "v1beta";
         const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${modelName}:generateContent?key=${currentApiKey}`;
         const response = await fetchWithTimeout(url, {
           method: "POST",

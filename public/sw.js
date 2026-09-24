@@ -1,10 +1,13 @@
 // Service Worker cho PWA NSG Corporate Profile & Portal
-const CACHE_NAME = 'nsg-portal-v1';
+const CACHE_NAME = 'nsg-portal-v2';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
-  '/logo nsg.png',
-  '/logo_nsg black.png',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/apple-touch-icon.png',
+  '/favicon-32.png',
+  '/logo_nsg_black.png',
   '/nsg-windmill.png',
   '/nsg-windmill-tower.png'
 ];

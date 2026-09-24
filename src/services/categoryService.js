@@ -20,7 +20,7 @@ export function sortCategoriesWithGeneralFirst(categories = []) {
 }
 
 export async function loadCategories() {
-  const defaultIds = ['cat-profile', 'cat-fnb', 'cat-estate', 'cat-general'];
+  const defaultIds = ['cat-profile', 'cat-fnb', 'cat-estate', 'cat-general', 'cat-phap-ly'];
 
   if (isSupabaseConfigured && supabase) {
     try {
@@ -30,10 +30,25 @@ export async function loadCategories() {
         .order('created_at', { ascending: true });
 
       if (!error && data && data.length > 0) {
+        // Tự động kiểm tra và thêm các danh mục mặc định cốt lõi nếu DB chưa có
+        const existingIds = new Set(data.map(c => c.id));
+        const missingDefaults = DEFAULT_CATEGORIES.filter(dc => !existingIds.has(dc.id));
+        if (missingDefaults.length > 0) {
+          for (const m of missingDefaults) {
+            await addCategoryToDb(m);
+            data.push({
+              id: m.id,
+              name: m.name,
+              is_default: true,
+              color: m.color,
+            });
+          }
+        }
+
         const mapped = data.map(c => ({
           id: c.id,
           name: c.name,
-          isDefault: defaultIds.includes(c.id),
+          isDefault: defaultIds.includes(c.id) || Boolean(c.is_default),
           color: c.color,
         }));
         return sortCategoriesWithGeneralFirst(mapped);
@@ -81,7 +96,7 @@ export async function updateCategoryInDb(catId, newName) {
 }
 
 export async function deleteCategoryFromDb(catId, targetCategoryId = 'cat-general') {
-  const defaultIds = ['cat-profile', 'cat-fnb', 'cat-estate', 'cat-general'];
+  const defaultIds = ['cat-profile', 'cat-fnb', 'cat-estate', 'cat-general', 'cat-phap-ly'];
   if (defaultIds.includes(catId)) {
     console.warn('Không thể xóa danh mục hệ thống mặc định:', catId);
     return;

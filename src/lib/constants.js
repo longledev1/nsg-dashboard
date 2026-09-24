@@ -29,6 +29,13 @@ export const DEFAULT_CATEGORIES = [
     isDefault: true,
     color: "#b45309", // Amber Gold
   },
+  {
+    id: "cat-phap-ly",
+    name: "Pháp Lý",
+    description: "Hồ sơ pháp lý, giấy phép & văn bản doanh nghiệp NS Group",
+    isDefault: true,
+    color: "#0284c7", // Sky/Navy Blue
+  },
 ];
 
 export const INITIAL_SUBFOLDERS = [];

@@ -57,20 +57,21 @@ export default function SidebarNav({
 
   const handleSelectAllDocs = () => {
     onSelectCategory(null);
-    onSelectSubFolder(null);
     if (onCloseMobile) onCloseMobile();
   };
 
   const handleCategoryClick = (catId) => {
     toggleCategory(catId);
     onSelectCategory(catId);
-    onSelectSubFolder(null);
     if (onCloseMobile) onCloseMobile();
   };
 
   const handleSubFolderClick = (catId, subId) => {
-    onSelectCategory(catId);
-    onSelectSubFolder(subId);
+    if (onSelectSubFolder) {
+      onSelectSubFolder(subId, catId);
+    } else {
+      onSelectCategory(catId);
+    }
     if (onCloseMobile) onCloseMobile();
   };
 

@@ -209,8 +209,9 @@ export default function DashboardPage({ user, onLogout }) {
     navigateTo(catId, null);
   };
 
-  const handleSelectSubFolder = (subId) => {
-    navigateTo(activeCategory, subId);
+  const handleSelectSubFolder = (subId, explicitCatId = null) => {
+    const targetCat = explicitCatId !== null ? explicitCatId : activeCategory;
+    navigateTo(targetCat, subId);
   };
 
   const handleSelectAllDocs = () => {
@@ -670,7 +671,7 @@ export default function DashboardPage({ user, onLogout }) {
           activeCategory={activeCategory}
           activeSubFolder={activeSubFolder}
           onSelectCategory={handleSelectCategory}
-          onSelectSubFolder={(subId) => handleSelectSubFolder(subId)}
+          onSelectSubFolder={handleSelectSubFolder}
           onOpenUploadModal={(catId = '', subId = '') => handleOpenUploadModal({ categoryId: catId, subFolderId: subId })}
           onOpenCategoryModal={() => setIsCategoryModalOpen(true)}
           onQuickAddSubFolder={(cat) => setQuickAddCategory(cat)}

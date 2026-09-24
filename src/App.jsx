@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import WelcomePage from './pages/WelcomePage';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import SplashScreen from './components/SplashScreen';
 import { loadDocumentById } from './services/documentService';
 import { FileText, ExternalLink, RefreshCw } from 'lucide-react';
+
+const PdfViewerModal = lazy(() => import('./components/PdfViewerModal'));
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -25,12 +27,12 @@ export default function App() {
   // Current Unauthenticated View: 'welcome' | 'login'
   const [currentView, setCurrentView] = useState('welcome');
 
-  // Shared Document State (Chế độ xem tài liệu chia sẻ qua Google Docs Viewer)
+  // Shared Document State (Xem trực tiếp trong app, không qua Google Docs Viewer để không bị lỗi 401 ẩn danh)
   const [sharedDocInfo, setSharedDocInfo] = useState(null);
   const [loadingSharedDoc, setLoadingSharedDoc] = useState(false);
   const [sharedDocError, setSharedDocError] = useState(null);
 
-  // Xử lý link chia sẻ ?docId=... cho người ngoài (mở thẳng qua Google Docs Viewer)
+  // Xử lý link chia sẻ ?docId=... cho người ngoài
   useEffect(() => {
     if (user) return; // Nếu đã đăng nhập thì DashboardPage tự xử lý
 
@@ -48,21 +50,11 @@ export default function App() {
           }
 
           let targetUrl = doc.fileUrl || doc.file_url;
-          // Nếu là đường dẫn tệp tĩnh nội bộ (ví dụ: /NSG History.docx)
           if (targetUrl && targetUrl.startsWith('/') && typeof window !== 'undefined') {
             targetUrl = `${window.location.origin}${targetUrl}`;
           }
 
-          if (targetUrl && (targetUrl.startsWith('http://') || targetUrl.startsWith('https://'))) {
-            const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(targetUrl)}`;
-            setSharedDocInfo({ doc, googleViewerUrl, rawUrl: targetUrl });
-
-            // Tự động chuyển hướng mở thẳng Google Docs Viewer
-            window.location.href = googleViewerUrl;
-          } else {
-            setSharedDocInfo({ doc, rawUrl: null });
-            setSharedDocError('Tài liệu chưa có tệp đính kèm khả dụng để xem.');
-          }
+          setSharedDocInfo({ doc, rawUrl: targetUrl });
         })
         .catch((err) => {
           console.error('Lỗi nạp tài liệu chia sẻ:', err);
@@ -101,8 +93,30 @@ export default function App() {
       );
     }
 
-    // Màn hình chuyển tiếp xem tài liệu qua Google Docs Viewer cho khách ngoài (Giao diện sáng - Light Theme)
-    if (loadingSharedDoc || sharedDocInfo || sharedDocError) {
+    // Màn hình xem tài liệu chia sẻ cho khách ngoài (Xem trực tiếp trong app, không qua Google Docs Viewer bị lỗi 401 ẩn danh)
+    if (sharedDocInfo?.doc) {
+      return (
+        <div className="min-h-screen bg-[#fcfaf7]">
+          <Suspense fallback={
+            <div className="fixed inset-0 flex items-center justify-center bg-white z-50">
+              <div className="w-8 h-8 border-3 border-[#d0aa61] border-t-transparent rounded-full animate-spin" />
+            </div>
+          }>
+            <PdfViewerModal
+              document={sharedDocInfo.doc}
+              onClose={() => {
+                setSharedDocInfo(null);
+                if (typeof window !== 'undefined') {
+                  window.history.replaceState({}, '', window.location.pathname);
+                }
+              }}
+            />
+          </Suspense>
+        </div>
+      );
+    }
+
+    if (loadingSharedDoc || sharedDocError) {
       return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#f7f5f0] text-zinc-800 p-4">
           {/* Vùng chuyển sắc trang trí vàng đồng nhẹ nhàng phía sau */}
@@ -119,7 +133,7 @@ export default function App() {
                 NS GROUP &bull; TÀI LIỆU CHIA SẺ
               </span>
               <h3 className="text-base sm:text-lg font-bold text-zinc-900 mt-2 line-clamp-2">
-                {sharedDocInfo?.doc?.title || 'Đang mở tài liệu...'}
+                {loadingSharedDoc ? 'Đang kết nối tài liệu...' : 'Không thể mở tài liệu'}
               </h3>
             </div>
 
@@ -127,19 +141,6 @@ export default function App() {
               <div className="flex items-center justify-center gap-2.5 text-zinc-500 text-xs py-3">
                 <RefreshCw className="w-4 h-4 animate-spin text-[#d0aa61]" />
                 <span>Đang kết nối hệ thống tài liệu NSG...</span>
-              </div>
-            ) : sharedDocInfo?.googleViewerUrl ? (
-              <div className="space-y-3 pt-1">
-                <p className="text-xs text-zinc-500 leading-relaxed">
-                  Đang tự động chuyển hướng sang <strong>Google Docs Viewer</strong> để đọc file...
-                </p>
-                <a
-                  href={sharedDocInfo.googleViewerUrl}
-                  className="w-full py-3 px-4 bg-[#d0aa61] hover:bg-[#b89149] text-[#26231f] font-bold text-xs rounded-xl transition-all shadow-xs hover:shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
-                >
-                  <ExternalLink className="w-4 h-4 text-[#26231f]" />
-                  <span>Bấm vào đây để mở xem ngay lập tức</span>
-                </a>
               </div>
             ) : (
               <div className="py-2.5 text-xs text-red-600 bg-red-50 p-3 rounded-xl border border-red-200">

@@ -7,7 +7,16 @@ import { loadDocumentById } from './services/documentService';
 import { FileText, ExternalLink, RefreshCw } from 'lucide-react';
 
 export default function App() {
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const url = window.location.href || '';
+      // Nếu là link mở tài liệu chia sẻ (?docId=...), tắt hoàn toàn SplashScreen để mở thẳng tài liệu ngay lập tức
+      if (url.includes('docId=')) {
+        return false;
+      }
+    }
+    return true;
+  });
   const [user, setUser] = useState(() => {
     // Clear any legacy persistent login from localStorage so browser close logs out
     try {
@@ -34,8 +43,17 @@ export default function App() {
   useEffect(() => {
     if (user) return; // Nếu đã đăng nhập thì DashboardPage tự xử lý
 
-    const params = new URLSearchParams(window.location.search);
-    const docId = params.get('docId');
+    let docId = null;
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      docId = params.get('docId');
+      if (!docId && window.location.hash.includes('docId=')) {
+        const hashQuery = window.location.hash.includes('?') 
+          ? window.location.hash.substring(window.location.hash.indexOf('?'))
+          : window.location.hash.substring(1);
+        docId = new URLSearchParams(hashQuery).get('docId');
+      }
+    }
     if (docId) {
       setLoadingSharedDoc(true);
       setSharedDocError(null);

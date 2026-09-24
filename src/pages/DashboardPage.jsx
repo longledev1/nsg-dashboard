@@ -259,17 +259,6 @@ export default function DashboardPage({ user, onLogout }) {
   const handleToggleSidebarMobile = (open) => {
     const nextState = typeof open === 'boolean' ? open : !isSidebarOpenMobile;
     setIsSidebarOpenMobile(nextState);
-    if (nextState) {
-      if (typeof window !== 'undefined') {
-        window.history.pushState({ modal: 'sidebar', cat: activeCategory, sub: activeSubFolder }, '', window.location.href);
-        activeModalRef.current = 'sidebar';
-      }
-    } else {
-      if (activeModalRef.current === 'sidebar') {
-        activeModalRef.current = null;
-        window.history.back();
-      }
-    }
   };
 
   // Lắng nghe sự kiện vuốt Back trên điện thoại (PopState Event)
@@ -280,7 +269,13 @@ export default function DashboardPage({ user, onLogout }) {
     }
 
     const handlePopState = () => {
-      // 1. Ưu tiên đóng Modal nếu có modal đang mở
+      // 1. Nếu đang mở Sidebar trên mobile, vuốt Back sẽ đóng Sidebar
+      if (isSidebarOpenMobile) {
+        setIsSidebarOpenMobile(false);
+        return;
+      }
+
+      // 2. Ưu tiên đóng Modal nếu có modal đang mở
       if (activeModalRef.current) {
         const modalType = activeModalRef.current;
         activeModalRef.current = null;
@@ -290,7 +285,6 @@ export default function DashboardPage({ user, onLogout }) {
           setIsUploadModalOpen(false);
           setUploadPreSelection({ categoryId: '', subFolderId: '' });
         }
-        if (modalType === 'sidebar') setIsSidebarOpenMobile(false);
         return;
       }
 
@@ -304,10 +298,6 @@ export default function DashboardPage({ user, onLogout }) {
       }
       if (isUploadModalOpen) {
         setIsUploadModalOpen(false);
-        return;
-      }
-      if (isSidebarOpenMobile) {
-        setIsSidebarOpenMobile(false);
         return;
       }
 

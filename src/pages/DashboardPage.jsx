@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import Header from '../components/Header';
 import SidebarNav from '../components/SidebarNav';
 import DocumentGrid from '../components/DocumentGrid';
@@ -49,10 +49,25 @@ export default function DashboardPage({ user, onLogout }) {
   const [documents, setDocuments] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
 
-  // Navigation Filter State
-  const [activeCategory, setActiveCategory] = useState(null);
-  const [activeSubFolder, setActiveSubFolder] = useState(null);
+  // Navigation Filter State (Đồng bộ trực tiếp với Browser History & URL Query Params)
+  const [activeCategory, setActiveCategory] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('cat') || null;
+    }
+    return null;
+  });
+  const [activeSubFolder, setActiveSubFolder] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('folder') || null;
+    }
+    return null;
+  });
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Ref theo dõi modal nào đang mở để xử lý khi người dùng vuốt Back trên điện thoại
+  const activeModalRef = useRef(null);
 
   // Multi-select Document State
   const [selectedDocIds, setSelectedDocIds] = useState([]);
@@ -150,13 +165,167 @@ export default function DashboardPage({ user, onLogout }) {
     );
   };
 
-  const handleSelectAllDocs = (docIds) => {
-    setSelectedDocIds(docIds);
-  };
-
   const handleClearDocSelection = () => {
     setSelectedDocIds([]);
   };
+
+  // =========================================================================
+  // BROWSER HISTORY & NAVIGATION API (Cho phép vuốt Back trên mobile mà không văng app)
+  // =========================================================================
+  const navigateTo = (catId, subId = null, replace = false) => {
+    setActiveCategory(catId);
+    setActiveSubFolder(subId);
+
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (catId) {
+        url.searchParams.set('cat', catId);
+      } else {
+        url.searchParams.delete('cat');
+      }
+      if (subId) {
+        url.searchParams.set('folder', subId);
+      } else {
+        url.searchParams.delete('folder');
+      }
+
+      const stateObj = { cat: catId, sub: subId };
+      const currentParams = new URLSearchParams(window.location.search);
+      const isSame = (currentParams.get('cat') || null) === (catId || null) && 
+                     (currentParams.get('folder') || null) === (subId || null);
+
+      if (!isSame) {
+        const newUrl = url.pathname + (url.search || '') + (url.hash || '');
+        if (replace) {
+          window.history.replaceState(stateObj, '', newUrl);
+        } else {
+          window.history.pushState(stateObj, '', newUrl);
+        }
+      }
+    }
+  };
+
+  const handleSelectCategory = (catId) => {
+    navigateTo(catId, null);
+  };
+
+  const handleSelectSubFolder = (subId) => {
+    navigateTo(activeCategory, subId);
+  };
+
+  const handleSelectAllDocs = () => {
+    setSelectedDocIds([]);
+    navigateTo(null, null);
+  };
+
+  // Quản lý Modal có đẩy History State: khi vuốt Back sẽ tự đóng modal
+  const handleOpenAiModal = (open) => {
+    if (open) {
+      setIsAiModalOpen(true);
+      if (typeof window !== 'undefined') {
+        window.history.pushState({ modal: 'ai', cat: activeCategory, sub: activeSubFolder }, '', window.location.href);
+        activeModalRef.current = 'ai';
+      }
+    } else {
+      if (activeModalRef.current === 'ai') {
+        activeModalRef.current = null;
+        window.history.back();
+      } else {
+        setIsAiModalOpen(false);
+      }
+    }
+  };
+
+  const handleOpenUploadModal = (preSelect = { categoryId: '', subFolderId: '' }) => {
+    setUploadPreSelection(preSelect);
+    setIsUploadModalOpen(true);
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ modal: 'upload', cat: activeCategory, sub: activeSubFolder }, '', window.location.href);
+      activeModalRef.current = 'upload';
+    }
+  };
+
+  const handleCloseUploadModal = () => {
+    if (activeModalRef.current === 'upload') {
+      activeModalRef.current = null;
+      window.history.back();
+    } else {
+      setIsUploadModalOpen(false);
+      setUploadPreSelection({ categoryId: '', subFolderId: '' });
+    }
+  };
+
+  const handleToggleSidebarMobile = (open) => {
+    const nextState = typeof open === 'boolean' ? open : !isSidebarOpenMobile;
+    setIsSidebarOpenMobile(nextState);
+    if (nextState) {
+      if (typeof window !== 'undefined') {
+        window.history.pushState({ modal: 'sidebar', cat: activeCategory, sub: activeSubFolder }, '', window.location.href);
+        activeModalRef.current = 'sidebar';
+      }
+    } else {
+      if (activeModalRef.current === 'sidebar') {
+        activeModalRef.current = null;
+        window.history.back();
+      }
+    }
+  };
+
+  // Lắng nghe sự kiện vuốt Back trên điện thoại (PopState Event)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      window.history.replaceState({ cat: params.get('cat') || null, sub: params.get('folder') || null }, '', window.location.href);
+    }
+
+    const handlePopState = () => {
+      // 1. Ưu tiên đóng Modal nếu có modal đang mở
+      if (activeModalRef.current) {
+        const modalType = activeModalRef.current;
+        activeModalRef.current = null;
+        if (modalType === 'pdf') setSelectedPdf(null);
+        if (modalType === 'ai') setIsAiModalOpen(false);
+        if (modalType === 'upload') {
+          setIsUploadModalOpen(false);
+          setUploadPreSelection({ categoryId: '', subFolderId: '' });
+        }
+        if (modalType === 'sidebar') setIsSidebarOpenMobile(false);
+        return;
+      }
+
+      if (selectedPdf) {
+        setSelectedPdf(null);
+        return;
+      }
+      if (isAiModalOpen) {
+        setIsAiModalOpen(false);
+        return;
+      }
+      if (isUploadModalOpen) {
+        setIsUploadModalOpen(false);
+        return;
+      }
+      if (isSidebarOpenMobile) {
+        setIsSidebarOpenMobile(false);
+        return;
+      }
+
+      // 2. Không có modal -> Đồng bộ lùi Folder / Category theo URL
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const cat = params.get('cat') || null;
+        const sub = params.get('folder') || null;
+
+        setActiveCategory(cat);
+        setActiveSubFolder(sub);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [selectedPdf, isAiModalOpen, isUploadModalOpen, isSidebarOpenMobile]);
 
   // Handlers for Category & Data Persistence
   const handleAddCategory = async (newCat) => {
@@ -453,6 +622,19 @@ export default function DashboardPage({ user, onLogout }) {
     }
 
     setSelectedPdf(doc);
+    if (typeof window !== 'undefined') {
+      window.history.pushState({ modal: 'pdf', cat: activeCategory, sub: activeSubFolder }, '', window.location.href);
+      activeModalRef.current = 'pdf';
+    }
+  };
+
+  const handleClosePdf = () => {
+    if (activeModalRef.current === 'pdf') {
+      activeModalRef.current = null;
+      window.history.back();
+    } else {
+      setSelectedPdf(null);
+    }
   };
 
   return (
@@ -473,7 +655,7 @@ export default function DashboardPage({ user, onLogout }) {
         onLogout={onLogout}
         onOpenUserManager={() => setIsUserManagerOpen(true)}
         onOpenAiSettings={() => setIsAiSettingsOpen(true)}
-        onToggleSidebar={() => setIsSidebarOpenMobile(prev => !prev)}
+        onToggleSidebar={() => handleToggleSidebarMobile(!isSidebarOpenMobile)}
         showToast={showToast}
       />
 
@@ -487,12 +669,9 @@ export default function DashboardPage({ user, onLogout }) {
           documents={documents}
           activeCategory={activeCategory}
           activeSubFolder={activeSubFolder}
-          onSelectCategory={setActiveCategory}
-          onSelectSubFolder={setActiveSubFolder}
-          onOpenUploadModal={(catId = '', subId = '') => {
-            setUploadPreSelection({ categoryId: catId, subFolderId: subId });
-            setIsUploadModalOpen(true);
-          }}
+          onSelectCategory={handleSelectCategory}
+          onSelectSubFolder={(subId) => handleSelectSubFolder(subId)}
+          onOpenUploadModal={(catId = '', subId = '') => handleOpenUploadModal({ categoryId: catId, subFolderId: subId })}
           onOpenCategoryModal={() => setIsCategoryModalOpen(true)}
           onQuickAddSubFolder={(cat) => setQuickAddCategory(cat)}
           onQuickUploadToSubFolder={handleQuickUploadToSubFolder}
@@ -503,7 +682,7 @@ export default function DashboardPage({ user, onLogout }) {
           onDeleteCategory={handleDeleteCategory}
           userRole={user.role}
           isOpenMobile={isSidebarOpenMobile}
-          onCloseMobile={() => setIsSidebarOpenMobile(false)}
+          onCloseMobile={() => handleToggleSidebarMobile(false)}
         />
 
         {/* Right Content Area */}
@@ -520,8 +699,8 @@ export default function DashboardPage({ user, onLogout }) {
               subFolders={subFolders}
               activeCategory={activeCategory}
               activeSubFolder={activeSubFolder}
-              onSelectCategory={setActiveCategory}
-              onSelectSubFolder={setActiveSubFolder}
+              onSelectCategory={handleSelectCategory}
+              onSelectSubFolder={handleSelectSubFolder}
               onQuickAddSubFolder={(cat) => setQuickAddCategory(cat)}
               onEditSubFolder={(sub) => setEditingSubFolder(sub)}
               onMoveSubFolder={(sub) => setMovingSubFolder(sub)}
@@ -553,7 +732,7 @@ export default function DashboardPage({ user, onLogout }) {
         subFolders={subFolders}
         onViewPdf={handleViewDocument}
         isOpen={isAiModalOpen}
-        onOpenChange={setIsAiModalOpen}
+        onOpenChange={handleOpenAiModal}
       />
 
       {/* Mobile Native App Bottom Navigation Bar (Chỉ hiện trên Mobile/Tablet < 1024px) */}
@@ -562,12 +741,9 @@ export default function DashboardPage({ user, onLogout }) {
         activeCategory={activeCategory}
         activeSubFolder={activeSubFolder}
         onSelectAllDocs={handleSelectAllDocs}
-        onToggleSidebar={() => setIsSidebarOpenMobile(prev => !prev)}
-        onOpenUploadModal={() => {
-          setUploadPreSelection({ categoryId: '', subFolderId: '' });
-          setIsUploadModalOpen(true);
-        }}
-        onOpenAi={() => setIsAiModalOpen(true)}
+        onToggleSidebar={() => handleToggleSidebarMobile(!isSidebarOpenMobile)}
+        onOpenUploadModal={() => handleOpenUploadModal({ categoryId: '', subFolderId: '' })}
+        onOpenAi={() => handleOpenAiModal(true)}
         onOpenUserManager={() => setIsUserManagerOpen(true)}
         onOpenAiSettings={() => setIsAiSettingsOpen(true)}
         onLogout={onLogout}
@@ -583,7 +759,7 @@ export default function DashboardPage({ user, onLogout }) {
               setSelectedPdf(updated);
               setDocuments(prev => prev.map(d => d.id === updated.id ? { ...d, ...updated } : d));
             }}
-            onClose={() => setSelectedPdf(null)}
+            onClose={handleClosePdf}
           />
         )}
 
@@ -629,10 +805,7 @@ export default function DashboardPage({ user, onLogout }) {
             preSelectedSubFolder={uploadPreSelection.subFolderId}
             onUploadDocument={handleUploadDocument}
             onShowToast={showToast}
-            onClose={() => {
-              setIsUploadModalOpen(false);
-              setUploadPreSelection({ categoryId: '', subFolderId: '' });
-            }}
+            onClose={handleCloseUploadModal}
           />
         )}
 

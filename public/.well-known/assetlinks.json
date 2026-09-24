@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "app.netlify.nsgportal.twa",
+    "sha256_cert_fingerprints": ["F8:B5:76:DB:F4:3E:B4:98:E4:FF:63:F5:56:30:41:2A:D7:F6:58:A4:F4:F6:38:C8:F3:C4:D7:FA:87:70:8C:AC"]
+  }
+}]

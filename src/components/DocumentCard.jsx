@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, Calendar, HardDrive, Tag, Edit2, Trash2, CheckSquare, Square, Lock, FolderOutput, Download } from 'lucide-react';
+import { Eye, Calendar, HardDrive, Tag, Edit2, Trash2, CheckSquare, Square, Lock, FolderOutput, Download, MoreVertical, Share2 } from 'lucide-react';
 import { sanitizeFileUrl } from '../services/documentService';
 import { getLocalFileUrl } from '../services/localFileStorage';
 import { generatePdfThumbnail } from '../services/pdfExtractor';
@@ -76,6 +76,7 @@ export default function DocumentCard({
   onEditDocument,
   onMoveDocument,
   onDeleteDocument,
+  onShareDocument,
   userRole
 }) {
   const isWord = document.fileType === 'word' || 
@@ -141,6 +142,29 @@ export default function DocumentCard({
     };
   }, [document.id, currentFileUrl, isWord]);
 
+  // Quản lý trạng thái mở menu 3 chấm (:)
+  const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const menuRef = React.useRef(null);
+
+  // Đóng menu khi click ra ngoài hoặc bấm Escape
+  React.useEffect(() => {
+    if (!isMenuOpen) return;
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setIsMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setIsMenuOpen(false);
+    };
+    window.document.addEventListener('mousedown', handleClickOutside);
+    window.document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.document.removeEventListener('mousedown', handleClickOutside);
+      window.document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMenuOpen]);
+
   // Tải tệp trực tiếp từ Card 1 chạm
   const handleQuickDownload = async (e) => {
     e.stopPropagation();
@@ -194,7 +218,7 @@ export default function DocumentCard({
   };
 
   return (
-    <div className={`bg-white rounded-xl border transition-all flex flex-col justify-between group overflow-hidden relative ${
+    <div className={`bg-white rounded-xl border transition-all flex flex-col justify-between group relative ${
       isSelected 
         ? 'border-[#d0aa61] ring-2 ring-[#d0aa61]/30 shadow-md' 
         : 'border-zinc-200/80 hover:shadow-md hover:border-[#d0aa61]/60'
@@ -232,52 +256,98 @@ export default function DocumentCard({
             )}
           </div>
 
-          {/* Admin Action Buttons (Edit, Move, Delete) */}
+          {/* Admin Action Menu: Gộp tất cả hành động vào icon 3 chấm dọc (:) - Chỉ dành cho Quản trị viên */}
           {userRole === 'admin' && (
-            <div className="flex items-center gap-0.5 shrink-0 bg-zinc-50 p-0.5 rounded-lg border border-zinc-200 shadow-2xs">
+            <div className="relative shrink-0" ref={menuRef}>
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onEditDocument && onEditDocument(document);
+                  setIsMenuOpen(prev => !prev);
                 }}
-                className="p-1.5 rounded-md text-zinc-500 hover:text-[#9f7a35] hover:bg-white active:scale-90 transition-all cursor-pointer"
-                title="Chỉnh sửa thông tin tài liệu"
+                className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center justify-center ${
+                  isMenuOpen 
+                    ? 'bg-[#faf6ed] border-[#d0aa61] text-[#9f7a35] shadow-xs' 
+                    : 'bg-zinc-50 hover:bg-white border-zinc-200 text-zinc-500 hover:text-[#9f7a35]'
+                }`}
+                title="Tùy chọn tài liệu"
+                aria-label="Tùy chọn tài liệu"
               >
-                <Edit2 className="w-3.5 h-3.5" />
+                <MoreVertical className="w-3.5 h-3.5" />
               </button>
 
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onMoveDocument && onMoveDocument(document);
-                }}
-                className="p-1.5 rounded-md text-zinc-500 hover:text-[#9f7a35] hover:bg-white active:scale-90 transition-all cursor-pointer"
-                title="Di chuyển tài liệu sang folder khác"
-              >
-                <FolderOutput className="w-3.5 h-3.5" />
-              </button>
-              
-              {isProtected ? (
-                <span 
-                  className="p-1.5 rounded-md text-zinc-300 cursor-not-allowed" 
-                  title="Tài liệu cốt lõi hệ thống được bảo vệ - Không thể xóa"
+              {/* Dropdown Menu */}
+              {isMenuOpen && (
+                <div 
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute right-0 top-full mt-1.5 w-44 bg-white rounded-xl shadow-xl border border-zinc-200/90 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100"
                 >
-                  <Lock className="w-3.5 h-3.5 text-zinc-400" />
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteDocument && onDeleteDocument(document);
-                  }}
-                  className="p-1.5 rounded-md text-zinc-400 hover:text-red-600 hover:bg-white active:scale-90 transition-all cursor-pointer"
-                  title="Xóa tài liệu khỏi kho"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                  {/* 1. Chia sẻ tài liệu */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      onShareDocument && onShareDocument(document);
+                    }}
+                    className="w-full px-3 py-2 text-left text-xs font-medium text-zinc-700 hover:bg-[#faf6ed] hover:text-[#9f7a35] flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <Share2 className="w-3.5 h-3.5 text-[#d0aa61]" />
+                    <span>Chia sẻ tài liệu</span>
+                  </button>
+
+                  {/* 2. Di chuyển file */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      onMoveDocument && onMoveDocument(document);
+                    }}
+                    className="w-full px-3 py-2 text-left text-xs font-medium text-zinc-700 hover:bg-[#faf6ed] hover:text-[#9f7a35] flex items-center gap-2.5 transition-colors cursor-pointer"
+                    title="Di chuyển file sang folder khác"
+                  >
+                    <FolderOutput className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>Di chuyển file</span>
+                  </button>
+
+                  {/* 3. Chỉnh sửa thông tin */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      onEditDocument && onEditDocument(document);
+                    }}
+                    className="w-full px-3 py-2 text-left text-xs font-medium text-zinc-700 hover:bg-[#faf6ed] hover:text-[#9f7a35] flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <Edit2 className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>Sửa thông tin</span>
+                  </button>
+
+                  {/* Divider */}
+                  <div className="my-1 border-t border-zinc-100" />
+
+                  {/* 4. Xóa tài liệu */}
+                  {isProtected ? (
+                    <div 
+                      className="w-full px-3 py-2 text-left text-xs font-medium text-zinc-400 flex items-center gap-2.5 cursor-not-allowed select-none"
+                      title="Tài liệu cốt lõi hệ thống được bảo vệ - Không thể xóa"
+                    >
+                      <Lock className="w-3.5 h-3.5 text-zinc-400" />
+                      <span>Tài liệu bảo vệ</span>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        onDeleteDocument && onDeleteDocument(document);
+                      }}
+                      className="w-full px-3 py-2 text-left text-xs font-medium text-red-600 hover:bg-red-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                      <span>Xóa tài liệu</span>
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           )}

@@ -36,8 +36,12 @@ export default function MoveDocumentsModal({
               <FolderOutput className="w-4.5 h-4.5" />
             </div>
             <div>
-              <h3 className="font-semibold text-sm text-white">Di chuyển Hàng loạt Tài liệu</h3>
-              <p className="text-[11px] text-zinc-300">Đang di chuyển {selectedCount} tài liệu được chọn</p>
+              <h3 className="font-semibold text-sm text-white">
+                {selectedCount > 1 ? 'Di chuyển Hàng loạt File' : 'Di chuyển File'}
+              </h3>
+              <p className="text-[11px] text-zinc-300">
+                Đang di chuyển {selectedCount} file được chọn
+              </p>
             </div>
           </div>
 
@@ -99,7 +103,7 @@ export default function MoveDocumentsModal({
               className="px-5 py-2 bg-[#d0aa61] hover:bg-[#b89149] text-[#504b44] font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
             >
               <Check className="w-4 h-4" />
-              <span>Xác nhận Di chuyển</span>
+              <span>Xác nhận Di chuyển File</span>
             </button>
           </div>
         </form>

@@ -1,17 +1,15 @@
 // ==============================================================================
 // SERVICE QUẢN LÝ BỘ NHỚ & CHỈ THỊ ĐỘNG CỦA AI (AI MEMORY SERVICE)
-// Đồng bộ Supabase bảng `ai_memories` & lưu trữ dự phòng LocalStorage
+// Single Source of Truth: Supabase PostgreSQL `ai_memories`
 // ==============================================================================
 
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
 
-const LOCAL_STORAGE_KEY = "nsg_ai_memories";
-
-// In-memory cache
+// In-memory cache trong phiên hoạt động
 let cachedMemories = null;
 
 /**
- * 1. TẢI TOÀN BỘ BỘ NHỚ AI TỪ SUPABASE (KÈM DỰ PHÒNG LOCALSTORAGE)
+ * 1. TẢI TOÀN BỘ BỘ NHỚ AI TỪ SUPABASE
  */
 export async function loadAiMemories(forceRefresh = false) {
   if (cachedMemories && !forceRefresh) {
@@ -19,7 +17,6 @@ export async function loadAiMemories(forceRefresh = false) {
   }
 
   let dbMemories = [];
-  let isDbSuccess = false;
 
   if (isSupabaseConfigured && supabase) {
     try {
@@ -29,7 +26,6 @@ export async function loadAiMemories(forceRefresh = false) {
         .order("created_at", { ascending: false });
 
       if (!error && data) {
-        isDbSuccess = true;
         dbMemories = data.map((item) => ({
           id: item.id,
           content: item.content,
@@ -45,28 +41,7 @@ export async function loadAiMemories(forceRefresh = false) {
     }
   }
 
-  // Đọc dự phòng từ LocalStorage
-  let localMemories = [];
-  try {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (saved) {
-      localMemories = JSON.parse(saved);
-    }
-  } catch (e) {
-    console.error("Lỗi đọc localStorage ai_memories:", e);
-  }
-
-  const finalMap = new Map();
-  if (isDbSuccess) {
-    dbMemories.forEach((m) => finalMap.set(m.id, m));
-    try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dbMemories));
-    } catch (e) {}
-  } else {
-    localMemories.forEach((m) => finalMap.set(m.id, m));
-  }
-
-  cachedMemories = Array.from(finalMap.values());
+  cachedMemories = dbMemories;
   return cachedMemories;
 }
 
@@ -112,13 +87,9 @@ export async function addAiMemory(content, type = "remember") {
     }
   }
 
-  // Cập nhật cache & LocalStorage
+  // Cập nhật in-memory cache
   const current = await loadAiMemories();
-  const updated = [memoryObj, ...current.filter((m) => m.id !== memoryObj.id)];
-  cachedMemories = updated;
-  try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
-  } catch (e) {}
+  cachedMemories = [memoryObj, ...current.filter((m) => m.id !== memoryObj.id)];
 
   return { data: memoryObj, error: null };
 }
@@ -139,15 +110,11 @@ export async function toggleAiMemory(id, newStatus) {
   }
 
   const current = await loadAiMemories();
-  const updated = current.map((m) =>
+  cachedMemories = current.map((m) =>
     m.id === id ? { ...m, isActive: newStatus } : m
   );
-  cachedMemories = updated;
-  try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
-  } catch (e) {}
 
-  return updated;
+  return cachedMemories;
 }
 
 /**
@@ -163,11 +130,7 @@ export async function deleteAiMemory(id) {
   }
 
   const current = await loadAiMemories();
-  const updated = current.filter((m) => m.id !== id);
-  cachedMemories = updated;
-  try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
-  } catch (e) {}
+  cachedMemories = current.filter((m) => m.id !== id);
 
-  return updated;
+  return cachedMemories;
 }

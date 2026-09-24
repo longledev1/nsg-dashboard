@@ -42,6 +42,7 @@ export default function DocumentGrid({
   onEditDocument,
   onMoveDocument,
   onDeleteDocument,
+  onShareDocument,
   userRole
 }) {
   const categoryMap = React.useMemo(() => {
@@ -262,10 +263,10 @@ export default function DocumentGrid({
               <button
                 onClick={onBulkMove}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-[#d0aa61] hover:bg-[#b89149] text-[#504b44] font-bold text-xs rounded-lg transition-colors cursor-pointer shadow-xs"
-                title="Di chuyển sang folder khác"
+                title="Di chuyển file sang folder khác"
               >
                 <FolderOutput className="w-3.5 h-3.5" />
-                <span>Di chuyển ({selectedDocIds.length})</span>
+                <span>Di chuyển file ({selectedDocIds.length})</span>
               </button>
 
               <button
@@ -455,6 +456,7 @@ export default function DocumentGrid({
                   onEditDocument={onEditDocument}
                   onMoveDocument={onMoveDocument}
                   onDeleteDocument={onDeleteDocument}
+                  onShareDocument={onShareDocument}
                   userRole={userRole}
                 />
               ))}
@@ -559,7 +561,7 @@ export default function DocumentGrid({
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#d0aa61] hover:bg-[#b89149] text-[#504b44] font-bold text-xs rounded-lg transition-colors cursor-pointer shadow-xs"
             >
               <FolderOutput className="w-3.5 h-3.5" />
-              <span>Di chuyển đến...</span>
+              <span>Di chuyển file đến...</span>
             </button>
 
             {/* Batch Delete Button */}
@@ -598,6 +600,7 @@ export default function DocumentGrid({
               onEditDocument={onEditDocument}
               onMoveDocument={onMoveDocument}
               onDeleteDocument={onDeleteDocument}
+              onShareDocument={onShareDocument}
               userRole={userRole}
             />
           ))}

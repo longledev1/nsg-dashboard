@@ -1,21 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import Header from '../components/Header';
 import SidebarNav from '../components/SidebarNav';
 import DocumentGrid from '../components/DocumentGrid';
-import PdfViewerModal from '../components/PdfViewerModal';
 import ChatWidget from '../components/ChatWidget';
-import CategoryManagerModal from '../components/admin/CategoryManagerModal';
-import UserManagerModal from '../components/admin/UserManagerModal';
-import UploadModal from '../components/admin/UploadModal';
-import EditCategoryModal from '../components/admin/EditCategoryModal';
-import EditSubFolderModal from '../components/admin/EditSubFolderModal';
-import AddSubFolderModal from '../components/admin/AddSubFolderModal';
-import EditDocumentModal from '../components/admin/EditDocumentModal';
-import MoveDocumentsModal from '../components/admin/MoveDocumentsModal';
-import MoveSubFolderModal from '../components/admin/MoveSubFolderModal';
-import ConfirmDeleteModal from '../components/admin/ConfirmDeleteModal';
-import AiSettingsModal from '../components/admin/AiSettingsModal';
 import Toast from '../components/Toast';
+
+// Lazy-load modals (Loaded on-demand only when user opens them)
+const PdfViewerModal = lazy(() => import('../components/PdfViewerModal'));
+const CategoryManagerModal = lazy(() => import('../components/admin/CategoryManagerModal'));
+const UserManagerModal = lazy(() => import('../components/admin/UserManagerModal'));
+const UploadModal = lazy(() => import('../components/admin/UploadModal'));
+const EditCategoryModal = lazy(() => import('../components/admin/EditCategoryModal'));
+const EditSubFolderModal = lazy(() => import('../components/admin/EditSubFolderModal'));
+const AddSubFolderModal = lazy(() => import('../components/admin/AddSubFolderModal'));
+const EditDocumentModal = lazy(() => import('../components/admin/EditDocumentModal'));
+const MoveDocumentsModal = lazy(() => import('../components/admin/MoveDocumentsModal'));
+const MoveSubFolderModal = lazy(() => import('../components/admin/MoveSubFolderModal'));
+const ConfirmDeleteModal = lazy(() => import('../components/admin/ConfirmDeleteModal'));
+const AiSettingsModal = lazy(() => import('../components/admin/AiSettingsModal'));
+const ShareDocumentModal = lazy(() => import('../components/admin/ShareDocumentModal'));
 
 import { 
   loadCategories, 
@@ -73,6 +76,7 @@ export default function DashboardPage({ user, onLogout }) {
   const [quickAddCategory, setQuickAddCategory] = useState(null);
   const [editingDocument, setEditingDocument] = useState(null);
   const [deletingDocument, setDeletingDocument] = useState(null);
+  const [sharingDocument, setSharingDocument] = useState(null);
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
 
@@ -96,6 +100,19 @@ export default function DashboardPage({ user, onLogout }) {
         setCategories(cats);
         setSubFolders(subs);
         setDocuments(docs);
+
+        // Kiểm tra Deep-link ?docId=... để tự động mở tài liệu được chia sẻ
+        if (!silent && typeof window !== 'undefined') {
+          const params = new URLSearchParams(window.location.search);
+          const targetDocId = params.get('docId');
+          if (targetDocId && docs.length > 0) {
+            const foundDoc = docs.find(d => d.id === targetDocId);
+            if (foundDoc) {
+              setSelectedPdf(foundDoc);
+              window.history.replaceState({}, '', window.location.pathname);
+            }
+          }
+        }
       } catch (err) {
         console.error('Error fetching data from documentService:', err);
       } finally {
@@ -253,7 +270,7 @@ export default function DashboardPage({ user, onLogout }) {
       setActiveCategory(newCategoryId);
     }
 
-    // 4. Lưu DB & localStorage
+    // 4. Lưu Supabase DB
     await moveSubFolderInDb(subFolderId, newCategoryId);
 
     showToast(`Đã chuyển folder "${sub?.name}" sang danh mục "${targetCat?.name || 'mới'}"!`, 'success');
@@ -315,8 +332,8 @@ export default function DashboardPage({ user, onLogout }) {
       setActiveSubFolder(null);
     }
 
-    // 4. Cập nhật đồng bộ vào DB và localStorage
-    await deleteSubFolderFromDb(subFolder.id, targetSubFolderId, targetCategoryId, updatedDocs);
+    // 4. Cập nhật đồng bộ vào Supabase DB
+    await deleteSubFolderFromDb(subFolder.id, targetSubFolderId, targetCategoryId);
 
     // 5. Báo Toast thông báo kết quả
     showToast(`Đã xóa folder "${subFolder.name}" và chuyển tất cả tài liệu về danh mục cha General.`, 'info');
@@ -518,6 +535,7 @@ export default function DashboardPage({ user, onLogout }) {
               onEditDocument={(doc) => setEditingDocument(doc)}
               onMoveDocument={handleMoveSingleDocument}
               onDeleteDocument={(doc) => setDeletingDocument(doc)}
+              onShareDocument={(doc) => setSharingDocument(doc)}
               userRole={user.role}
             />
           )}
@@ -534,159 +552,170 @@ export default function DashboardPage({ user, onLogout }) {
         onViewPdf={handleViewDocument}
       />
 
-      {/* PDF Viewer Modal (Rendered after ChatWidget with higher z-index) */}
-      {selectedPdf && (
-        <PdfViewerModal
-          document={selectedPdf}
-          onUpdateDocument={(updated) => {
-            setSelectedPdf(updated);
-            setDocuments(prev => prev.map(d => d.id === updated.id ? { ...d, ...updated } : d));
-          }}
-          onClose={() => setSelectedPdf(null)}
-        />
-      )}
+      {/* Lazy-loaded Modals (PDF Viewer & Admin Modals) */}
+      <Suspense fallback={null}>
+        {selectedPdf && (
+          <PdfViewerModal
+            document={selectedPdf}
+            onUpdateDocument={(updated) => {
+              setSelectedPdf(updated);
+              setDocuments(prev => prev.map(d => d.id === updated.id ? { ...d, ...updated } : d));
+            }}
+            onClose={() => setSelectedPdf(null)}
+          />
+        )}
 
-      {/* Admin Modals */}
-      {isCategoryModalOpen && (
-        <CategoryManagerModal
-          categories={categories}
-          subFolders={subFolders}
-          onAddCategory={handleAddCategory}
-          onDeleteCategory={handleDeleteCategory}
-          onAddSubFolder={handleAddSubFolder}
-          onEditSubFolder={(sub) => handleSaveSubFolder(sub.id, sub.name)}
-          onMoveSubFolder={(sub) => {
-            setIsCategoryModalOpen(false);
-            setMovingSubFolder(sub);
-          }}
-          onDeleteSubFolder={handleRequestDeleteSubFolder}
-          onClose={() => setIsCategoryModalOpen(false)}
-        />
-      )}
+        {isCategoryModalOpen && (
+          <CategoryManagerModal
+            categories={categories}
+            subFolders={subFolders}
+            onAddCategory={handleAddCategory}
+            onDeleteCategory={handleDeleteCategory}
+            onAddSubFolder={handleAddSubFolder}
+            onEditSubFolder={(sub) => handleSaveSubFolder(sub.id, sub.name)}
+            onMoveSubFolder={(sub) => {
+              setIsCategoryModalOpen(false);
+              setMovingSubFolder(sub);
+            }}
+            onDeleteSubFolder={handleRequestDeleteSubFolder}
+            onClose={() => setIsCategoryModalOpen(false)}
+          />
+        )}
 
-      {editingCategory && (
-        <EditCategoryModal
-          category={editingCategory}
-          onSave={handleSaveCategory}
-          onClose={() => setEditingCategory(null)}
-        />
-      )}
+        {editingCategory && (
+          <EditCategoryModal
+            category={editingCategory}
+            onSave={handleSaveCategory}
+            onClose={() => setEditingCategory(null)}
+          />
+        )}
 
-      {deletingCategory && (
-        <ConfirmDeleteModal
-          title="Xác nhận xóa Danh mục"
-          message={`Bạn có chắc chắn muốn xóa danh mục "${deletingCategory.name}" không? Tất cả tài liệu trong danh mục này sẽ tự động được chuyển sang danh mục General.`}
-          onConfirm={() => handleConfirmDeleteCategory(deletingCategory)}
-          onClose={() => setDeletingCategory(null)}
-        />
-      )}
+        {deletingCategory && (
+          <ConfirmDeleteModal
+            title="Xác nhận xóa Danh mục"
+            message={`Bạn có chắc chắn muốn xóa danh mục "${deletingCategory.name}" không? Tất cả tài liệu trong danh mục này sẽ tự động được chuyển sang danh mục General.`}
+            onConfirm={() => handleConfirmDeleteCategory(deletingCategory)}
+            onClose={() => setEditingCategory(null)}
+          />
+        )}
 
-      {isUploadModalOpen && (
-        <UploadModal
-          categories={categories}
-          subFolders={subFolders}
-          preSelectedCategory={uploadPreSelection.categoryId}
-          preSelectedSubFolder={uploadPreSelection.subFolderId}
-          onUploadDocument={handleUploadDocument}
-          onShowToast={showToast}
-          onClose={() => {
-            setIsUploadModalOpen(false);
-            setUploadPreSelection({ categoryId: '', subFolderId: '' });
-          }}
-        />
-      )}
+        {isUploadModalOpen && (
+          <UploadModal
+            categories={categories}
+            subFolders={subFolders}
+            preSelectedCategory={uploadPreSelection.categoryId}
+            preSelectedSubFolder={uploadPreSelection.subFolderId}
+            onUploadDocument={handleUploadDocument}
+            onShowToast={showToast}
+            onClose={() => {
+              setIsUploadModalOpen(false);
+              setUploadPreSelection({ categoryId: '', subFolderId: '' });
+            }}
+          />
+        )}
 
-      {quickAddCategory && (
-        <AddSubFolderModal
-          category={quickAddCategory}
-          onSave={handleAddSubFolder}
-          onClose={() => setQuickAddCategory(null)}
-        />
-      )}
+        {quickAddCategory && (
+          <AddSubFolderModal
+            category={quickAddCategory}
+            onSave={handleAddSubFolder}
+            onClose={() => setQuickAddCategory(null)}
+          />
+        )}
 
-      {editingSubFolder && (
-        <EditSubFolderModal
-          subFolder={editingSubFolder}
-          onSave={handleSaveSubFolder}
-          onClose={() => setEditingSubFolder(null)}
-        />
-      )}
+        {editingSubFolder && (
+          <EditSubFolderModal
+            subFolder={editingSubFolder}
+            onSave={handleSaveSubFolder}
+            onClose={() => setEditingSubFolder(null)}
+          />
+        )}
 
-      {movingSubFolder && (
-        <MoveSubFolderModal
-          subFolder={movingSubFolder}
-          categories={categories}
-          onConfirmMove={handleConfirmMoveSubFolder}
-          onClose={() => setMovingSubFolder(null)}
-        />
-      )}
+        {movingSubFolder && (
+          <MoveSubFolderModal
+            subFolder={movingSubFolder}
+            categories={categories}
+            onConfirmMove={handleConfirmMoveSubFolder}
+            onClose={() => setMovingSubFolder(null)}
+          />
+        )}
 
-      {deletingSubFolder && (
-        <ConfirmDeleteModal
-          title="Xác nhận xóa Folder Dự án"
-          message={`Bạn có chắc chắn muốn xóa folder "${deletingSubFolder.name}" không? Tất cả tài liệu trong folder này sẽ tự động được chuyển sang folder General.`}
-          onConfirm={() => handleConfirmDeleteSubFolder(deletingSubFolder)}
-          onClose={() => setDeletingSubFolder(null)}
-        />
-      )}
+        {deletingSubFolder && (
+          <ConfirmDeleteModal
+            title="Xác nhận xóa Folder Dự án"
+            message={`Bạn có chắc chắn muốn xóa folder "${deletingSubFolder.name}" không? Tất cả tài liệu trong folder này sẽ tự động được chuyển sang folder General.`}
+            onConfirm={() => handleConfirmDeleteSubFolder(deletingSubFolder)}
+            onClose={() => setDeletingSubFolder(null)}
+          />
+        )}
 
-      {editingDocument && (
-        <EditDocumentModal
-          document={editingDocument}
-          categories={categories}
-          subFolders={subFolders}
-          onSave={handleSaveDocument}
-          onClose={() => setEditingDocument(null)}
-        />
-      )}
+        {editingDocument && (
+          <EditDocumentModal
+            document={editingDocument}
+            categories={categories}
+            subFolders={subFolders}
+            onSave={handleSaveDocument}
+            onClose={() => setEditingDocument(null)}
+          />
+        )}
 
-      {deletingDocument && (
-        <ConfirmDeleteModal
-          title="Xác nhận xóa tài liệu"
-          message={`Bạn có chắc chắn muốn xóa tài liệu "${deletingDocument.title}" khỏi kho không? Hành động này sẽ không thể hoàn tác.`}
-          onConfirm={() => handleConfirmDeleteDocument(deletingDocument)}
-          onClose={() => setDeletingDocument(null)}
-        />
-      )}
+        {deletingDocument && (
+          <ConfirmDeleteModal
+            title="Xác nhận xóa tài liệu"
+            message={`Bạn có chắc chắn muốn xóa tài liệu "${deletingDocument.title}" khỏi kho không? Hành động này sẽ không thể hoàn tác.`}
+            onConfirm={() => handleConfirmDeleteDocument(deletingDocument)}
+            onClose={() => setDeletingDocument(null)}
+          />
+        )}
 
-      {isMoveModalOpen && (
-        <MoveDocumentsModal
-          selectedCount={selectedDocIds.length}
-          categories={categories}
-          subFolders={subFolders}
-          onConfirmMove={handleConfirmBulkMove}
-          onClose={() => setIsMoveModalOpen(false)}
-        />
-      )}
+        {isMoveModalOpen && (
+          <MoveDocumentsModal
+            selectedCount={selectedDocIds.length}
+            categories={categories}
+            subFolders={subFolders}
+            onConfirmMove={handleConfirmBulkMove}
+            onClose={() => setIsMoveModalOpen(false)}
+          />
+        )}
 
-      {isBulkDeleteModalOpen && (
-        <ConfirmDeleteModal
-          title="Xác nhận xóa hàng loạt tài liệu"
-          message={`Bạn có chắc chắn muốn xóa ${selectedDocIds.length} tài liệu được chọn khỏi kho không? Hành động này sẽ không thể hoàn tác.`}
-          onConfirm={handleConfirmBulkDelete}
-          onClose={() => setIsBulkDeleteModalOpen(false)}
-        />
-      )}
+        {isBulkDeleteModalOpen && (
+          <ConfirmDeleteModal
+            title="Xác nhận xóa hàng loạt tài liệu"
+            message={`Bạn có chắc chắn muốn xóa ${selectedDocIds.length} tài liệu được chọn khỏi kho không? Hành động này sẽ không thể hoàn tác.`}
+            onConfirm={handleConfirmBulkDelete}
+            onClose={() => setIsBulkDeleteModalOpen(false)}
+          />
+        )}
 
-      {/* Admin User Accounts Management Modal */}
-      {isUserManagerOpen && (
-        <UserManagerModal
-          isOpen={isUserManagerOpen}
-          onClose={() => setIsUserManagerOpen(false)}
-          currentUser={user}
-          showToast={showToast}
-        />
-      )}
+        {/* Admin User Accounts Management Modal */}
+        {isUserManagerOpen && (
+          <UserManagerModal
+            isOpen={isUserManagerOpen}
+            onClose={() => setIsUserManagerOpen(false)}
+            currentUser={user}
+            showToast={showToast}
+          />
+        )}
 
-      {/* Admin AI Settings & Directives Management Modal */}
-      {isAiSettingsOpen && (
-        <AiSettingsModal
-          isOpen={isAiSettingsOpen}
-          onClose={() => setIsAiSettingsOpen(false)}
-          currentUser={user}
-          showToast={showToast}
-        />
-      )}
+        {/* Admin AI Settings & Directives Management Modal */}
+        {isAiSettingsOpen && (
+          <AiSettingsModal
+            isOpen={isAiSettingsOpen}
+            onClose={() => setIsAiSettingsOpen(false)}
+            currentUser={user}
+            showToast={showToast}
+          />
+        )}
+
+        {/* Admin Share Document Modal */}
+        {sharingDocument && (
+          <ShareDocumentModal
+            document={sharingDocument}
+            currentUser={user}
+            onClose={() => setSharingDocument(null)}
+            showToast={showToast}
+          />
+        )}
+      </Suspense>
 
     </div>
   );

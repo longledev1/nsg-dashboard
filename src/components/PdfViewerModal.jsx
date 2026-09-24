@@ -337,7 +337,13 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
         return;
       }
 
-      // 2. Mở URL online (Supabase Cloud Storage / Blob): mở trực tiếp để trình duyệt đọc PDF gốc native
+      // 2. Mở URL online qua Google Docs Viewer để xem mượt mà 100% trên mọi thiết bị
+      if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+        const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(rawUrl)}`;
+        window.open(googleViewerUrl, '_blank', 'noopener,noreferrer');
+        return;
+      }
+
       window.open(rawUrl, '_blank', 'noopener,noreferrer');
       return;
     }

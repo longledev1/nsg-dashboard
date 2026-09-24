@@ -1,7 +1,5 @@
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
 
-const LOCAL_STORAGE_USERS_KEY = "nsg_user_accounts_cache";
-
 /**
  * Danh sách tài khoản mặc định dự phòng khi chưa kết nối Supabase
  */
@@ -29,33 +27,8 @@ const DEFAULT_FALLBACK_ACCOUNTS = [
 ];
 
 /**
- * Đọc bộ nhớ đệm tài khoản từ LocalStorage
- */
-function getCachedAccounts() {
-  try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_USERS_KEY);
-    if (raw) {
-      return JSON.parse(raw);
-    }
-  } catch (e) {
-    console.warn("Lỗi đọc cache user accounts:", e);
-  }
-  return DEFAULT_FALLBACK_ACCOUNTS;
-}
-
-/**
- * Lưu bộ nhớ đệm tài khoản vào LocalStorage
- */
-function setCachedAccounts(accounts) {
-  try {
-    localStorage.setItem(LOCAL_STORAGE_USERS_KEY, JSON.stringify(accounts));
-  } catch (e) {
-    console.warn("Lỗi ghi cache user accounts:", e);
-  }
-}
-
-/**
  * Tải danh sách tài khoản từ bảng `user_accounts` trên Supabase
+ * Single Source of Truth: Supabase PostgreSQL
  */
 export async function loadUserAccounts() {
   if (isSupabaseConfigured && supabase) {
@@ -66,7 +39,6 @@ export async function loadUserAccounts() {
         .order("created_at", { ascending: true });
 
       if (!error && data && data.length > 0) {
-        setCachedAccounts(data);
         return data;
       }
     } catch (err) {
@@ -74,7 +46,7 @@ export async function loadUserAccounts() {
     }
   }
 
-  return getCachedAccounts();
+  return DEFAULT_FALLBACK_ACCOUNTS;
 }
 
 /**
@@ -103,16 +75,6 @@ export async function checkUserLockStatus(email) {
     }
   }
 
-  // Dự phòng kiểm tra từ cache
-  const cached = getCachedAccounts();
-  const found = cached.find((u) => u.email.toLowerCase() === cleanEmail);
-  if (found) {
-    return {
-      isLocked: Boolean(found.is_locked),
-      reason: found.locked_reason || null,
-    };
-  }
-
   return { isLocked: false, reason: null };
 }
 
@@ -131,8 +93,6 @@ export async function updateUserLockStatus(email, isLocked, reason = "") {
     };
   }
 
-  let dbSuccess = false;
-
   if (isSupabaseConfigured && supabase) {
     try {
       const { error } = await supabase
@@ -145,47 +105,18 @@ export async function updateUserLockStatus(email, isLocked, reason = "") {
         })
         .eq("email", cleanEmail);
 
-      if (!error) {
-        dbSuccess = true;
-      } else {
+      if (error) {
         console.error("Lỗi cập nhật lock status Supabase:", error.message);
+        return { success: false, error: error.message };
       }
     } catch (err) {
       console.error("Lỗi ngoại lệ khi update lock status:", err);
+      return { success: false, error: err.message };
     }
   }
 
-  // Luôn cập nhật vào Cache LocalStorage để đồng bộ giao diện tức thì
-  const cached = getCachedAccounts();
-  const updatedList = cached.map((u) => {
-    if (u.email.toLowerCase() === cleanEmail) {
-      return {
-        ...u,
-        is_locked: isLocked,
-        locked_reason: isLocked ? reason : null,
-        locked_at: isLocked ? now : null,
-        updated_at: now,
-      };
-    }
-    return u;
-  });
-
-  // Nếu user chưa có trong cache thì thêm mới
-  if (!updatedList.some((u) => u.email.toLowerCase() === cleanEmail)) {
-    updatedList.push({
-      id: `usr-${Date.now()}`,
-      email: cleanEmail,
-      full_name: cleanEmail.split("@")[0],
-      role: "employee",
-      is_locked: isLocked,
-      locked_reason: isLocked ? reason : null,
-      locked_at: isLocked ? now : null,
-      created_at: now,
-      updated_at: now,
-    });
-  }
-
-  setCachedAccounts(updatedList);
+  // Tải lại danh sách tài khoản mới nhất trực tiếp từ DB
+  const updatedList = await loadUserAccounts();
 
   return {
     success: true,

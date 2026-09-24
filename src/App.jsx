@@ -98,49 +98,53 @@ export default function App() {
     );
   }
 
-  // Màn hình chuyển tiếp xem tài liệu qua Google Docs Viewer cho khách ngoài
+  // Màn hình chuyển tiếp xem tài liệu qua Google Docs Viewer cho khách ngoài (Giao diện sáng - Light Theme)
   if (loadingSharedDoc || sharedDocInfo || sharedDocError) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#26231f] text-white p-4">
-        <div className="bg-[#332f2a] border border-[#524c43] p-6 sm:p-8 rounded-2xl max-w-md w-full shadow-2xl text-center space-y-4 animate-in zoom-in-95 duration-200">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-[#faf6ed]/10 border border-[#d0aa61]/40 flex items-center justify-center text-[#d0aa61] shadow-inner">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#f7f5f0] text-zinc-800 p-4">
+        {/* Vùng chuyển sắc trang trí vàng đồng nhẹ nhàng phía sau */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#d0aa61]/15 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="bg-white border border-zinc-200/90 p-6 sm:p-8 rounded-2xl max-w-md w-full shadow-xl text-center space-y-4 relative z-10 animate-in zoom-in-95 duration-200">
+          {/* Logo / Document Icon Container */}
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-[#faf6ed] border border-[#d0aa61]/35 flex items-center justify-center text-[#9f7a35] shadow-xs">
             <FileText className="w-7 h-7" />
           </div>
 
           <div>
-            <span className="text-[11px] font-bold text-[#d0aa61] uppercase tracking-wider">
+            <span className="text-[11px] font-bold text-[#9f7a35] uppercase tracking-wider bg-[#faf6ed] px-3 py-0.5 rounded-full border border-[#d0aa61]/30 inline-block">
               NS GROUP &bull; TÀI LIỆU CHIA SẺ
             </span>
-            <h3 className="text-base sm:text-lg font-bold text-white mt-1 line-clamp-2">
+            <h3 className="text-base sm:text-lg font-bold text-zinc-900 mt-2 line-clamp-2">
               {sharedDocInfo?.doc?.title || 'Đang mở tài liệu...'}
             </h3>
           </div>
 
           {loadingSharedDoc ? (
-            <div className="flex items-center justify-center gap-2.5 text-zinc-300 text-xs py-3">
+            <div className="flex items-center justify-center gap-2.5 text-zinc-500 text-xs py-3">
               <RefreshCw className="w-4 h-4 animate-spin text-[#d0aa61]" />
               <span>Đang kết nối hệ thống tài liệu NSG...</span>
             </div>
           ) : sharedDocInfo?.googleViewerUrl ? (
-            <div className="space-y-3 pt-2">
-              <p className="text-xs text-zinc-300 leading-relaxed">
+            <div className="space-y-3 pt-1">
+              <p className="text-xs text-zinc-500 leading-relaxed">
                 Đang tự động chuyển hướng sang <strong>Google Docs Viewer</strong> để đọc file...
               </p>
               <a
                 href={sharedDocInfo.googleViewerUrl}
-                className="w-full py-3 px-4 bg-[#d0aa61] hover:bg-[#b89149] text-[#26231f] font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3 px-4 bg-[#d0aa61] hover:bg-[#b89149] text-[#26231f] font-bold text-xs rounded-xl transition-all shadow-xs hover:shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
               >
-                <ExternalLink className="w-4 h-4" />
+                <ExternalLink className="w-4 h-4 text-[#26231f]" />
                 <span>Bấm vào đây để mở xem ngay lập tức</span>
               </a>
             </div>
           ) : (
-            <div className="py-2 text-xs text-red-400 bg-red-950/40 p-3 rounded-xl border border-red-800/40">
+            <div className="py-2.5 text-xs text-red-600 bg-red-50 p-3 rounded-xl border border-red-200">
               {sharedDocError || 'Không thể mở tài liệu.'}
             </div>
           )}
 
-          <div className="pt-3 border-t border-zinc-700/50 flex justify-center">
+          <div className="pt-3 border-t border-zinc-100 flex justify-center">
             <button
               type="button"
               onClick={() => {
@@ -150,7 +154,7 @@ export default function App() {
                   window.history.replaceState({}, '', window.location.pathname);
                 }
               }}
-              className="text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors cursor-pointer font-medium"
             >
               &larr; Vào Trang chủ NS Group Portal
             </button>

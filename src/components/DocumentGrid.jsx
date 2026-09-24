@@ -17,7 +17,7 @@ import {
   FileText,
   Edit2
 } from 'lucide-react';
-import { sortSubFoldersWithGeneralFirst } from '../services/documentService';
+import { sortCategoriesWithGeneralFirst, sortSubFoldersWithGeneralFirst } from '../services/documentService';
 
 export default function DocumentGrid({
   documents,
@@ -155,7 +155,7 @@ export default function DocumentGrid({
 
         {/* Lưới các Danh mục chính (Categories Cards) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-5">
-          {categories.map((cat) => {
+          {sortCategoriesWithGeneralFirst(categories).map((cat) => {
             const catSubFolders = subFolders.filter((sf) => sf.categoryId === cat.id);
             const catDocCount = documents.filter((d) => d.categoryId === cat.id).length;
 

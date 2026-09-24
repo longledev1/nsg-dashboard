@@ -80,7 +80,7 @@ export default function WelcomePage({ onGoToLogin }) {
 
       {/* Footer */}
       <div className="w-full text-center text-[10px] text-zinc-600 tracking-wide shrink-0 pb-1 relative z-10 font-semibold">
-        &copy; 2024 NS Group. All rights reserved.
+        &copy; 2026 NS Group. All rights reserved.
       </div>
     </div>
   );

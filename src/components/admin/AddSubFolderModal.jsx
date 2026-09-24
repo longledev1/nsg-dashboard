@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { X, FolderPlus, Plus } from 'lucide-react';
+import React, { useState } from "react";
+import { X, FolderPlus, Plus } from "lucide-react";
 
 export default function AddSubFolderModal({ category, onSave, onClose }) {
-  const [name, setName] = useState('');
+  const [name, setName] = useState("");
 
   if (!category) return null;
 
@@ -23,13 +23,13 @@ export default function AddSubFolderModal({ category, onSave, onClose }) {
   return (
     <div className="fixed inset-0 z-50 bg-zinc-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white border border-zinc-200 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-        
         {/* Header */}
         <div className="px-4 py-3 bg-[#504b44] text-white flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FolderPlus className="w-4 h-4 text-[#d0aa61]" />
             <h3 className="font-semibold text-xs text-white">
-              Tạo Folder mới thuộc <span className="text-[#d0aa61]">{category.name}</span>
+              Tạo Folder mới thuộc{" "}
+              <span className="text-[#d0aa61]">{category.name}</span>
             </h3>
           </div>
           <button
@@ -43,10 +43,12 @@ export default function AddSubFolderModal({ category, onSave, onClose }) {
         {/* Body */}
         <form onSubmit={handleSubmit} className="p-4 space-y-4 text-xs">
           <div>
-            <label className="block font-semibold text-zinc-700 mb-1">Tên Folder Dự án mới (*):</label>
+            <label className="block font-semibold text-zinc-700 mb-1">
+              Tên Folder Dự án mới (*):
+            </label>
             <input
               type="text"
-              placeholder="VD: Concept Branding 2024, Dự án A..."
+              placeholder="VD: Concept Branding 2026, Dự án A..."
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:border-[#d0aa61] text-zinc-900"
@@ -73,7 +75,6 @@ export default function AddSubFolderModal({ category, onSave, onClose }) {
             </button>
           </div>
         </form>
-
       </div>
     </div>
   );

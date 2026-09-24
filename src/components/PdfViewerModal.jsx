@@ -7,6 +7,7 @@ import { getLocalFileUrl, saveLocalFile } from '../services/localFileStorage';
 import { sanitizeFileUrl, uploadPdfFileToStorage, updateDocumentInDb, isTouchDeviceOrIOS } from '../services/documentService';
 import { extractDocumentContent, generatePdfThumbnail } from '../services/pdfExtractor';
 import { clearDocumentThumbnailCache, setCachedDocumentThumbnail } from './DocumentCard';
+import { isPdfFile, isOverSizeLimit, compressPdfFile } from '../services/pdfCompressor';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 /**
@@ -251,10 +252,21 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
 
     try {
       setIsReuploading(true);
+
+      let fileToUpload = file;
+      if (isPdfFile(file) && isOverSizeLimit(file)) {
+        try {
+          const compResult = await compressPdfFile(file);
+          fileToUpload = compResult.compressedFile;
+          console.log(`Đã nén tệp khi reupload: ${(compResult.originalSize / (1024 * 1024)).toFixed(1)}MB -> ${(compResult.compressedSize / (1024 * 1024)).toFixed(1)}MB`);
+        } catch (compErr) {
+          console.warn('Lỗi nén tệp khi reupload:', compErr);
+        }
+      }
       
       // 1. Lưu vào IndexedDB cục bộ của thiết bị hiện tại
-      await saveLocalFile(document.id, file);
-      const freshBlobUrl = URL.createObjectURL(file);
+      await saveLocalFile(document.id, fileToUpload);
+      const freshBlobUrl = URL.createObjectURL(fileToUpload);
       setActiveUrl(freshBlobUrl);
 
       // 2. Trích xuất văn bản nếu tài liệu chưa có nội dung
@@ -272,14 +284,14 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
       let freshThumb = null;
       if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
         try {
-          freshThumb = await generatePdfThumbnail(file, 380);
+          freshThumb = await generatePdfThumbnail(fileToUpload, 380);
         } catch (thumbErr) {
           console.warn('Lỗi tạo thumbnail mới khi reupload:', thumbErr);
         }
       }
 
       // 4. Tải lên Supabase Storage bucket nsg-documents
-      const uploadResult = await uploadPdfFileToStorage(file);
+      const uploadResult = await uploadPdfFileToStorage(fileToUpload);
       if (uploadResult?.error || !uploadResult?.url) {
         const errMsg = uploadResult?.error || 'Không nhận được URL từ Supabase Storage';
         const isTimeout = errMsg.toLowerCase().includes('thời gian chờ') || errMsg.toLowerCase().includes('timeout');
@@ -303,7 +315,7 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
         ...document,
         fileUrl: remotePublicUrl,
         content: extracted || document.content || document.description || '',
-        fileSize: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+        fileSize: `${(fileToUpload.size / (1024 * 1024)).toFixed(1)} MB`,
         thumbnailUrl: freshThumb || null,
       };
 
@@ -405,7 +417,7 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
 
   return (
     <div 
-      className="fixed inset-0 z-[80] bg-zinc-950/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[80] bg-zinc-950/80 backdrop-blur-xs flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200"
       style={{ zIndex: 80 }}
     >
       <input 
@@ -418,8 +430,8 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
 
       {/* Modal Container */}
       <div 
-        className={`bg-[#3f3b35] border border-[#59544c] rounded-2xl flex flex-col shadow-2xl overflow-hidden transition-all duration-300 ${
-          isFullscreen ? 'w-full h-full rounded-none' : 'w-full max-w-5xl h-[92vh]'
+        className={`bg-[#3f3b35] border border-[#59544c] rounded-none sm:rounded-2xl flex flex-col shadow-2xl overflow-hidden transition-all duration-300 ${
+          isFullscreen ? 'w-full h-full rounded-none' : 'w-full h-full sm:h-[92vh] sm:max-w-5xl'
         }`}
       >
         {/* Top Control Bar */}

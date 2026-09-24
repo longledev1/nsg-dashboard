@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Edit2, Check } from 'lucide-react';
+import { sortCategoriesWithGeneralFirst } from '../../services/documentService';
 
 export default function EditDocumentModal({
   document,
@@ -92,7 +93,7 @@ export default function EditDocumentModal({
                 }}
                 className="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:border-[#d0aa61]"
               >
-                {categories.map(c => (
+                {sortCategoriesWithGeneralFirst(categories).map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>

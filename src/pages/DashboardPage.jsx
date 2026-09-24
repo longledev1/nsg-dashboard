@@ -3,6 +3,7 @@ import Header from '../components/Header';
 import SidebarNav from '../components/SidebarNav';
 import DocumentGrid from '../components/DocumentGrid';
 import ChatWidget from '../components/ChatWidget';
+import MobileBottomNav from '../components/mobile/MobileBottomNav';
 import Toast from '../components/Toast';
 
 // Lazy-load modals (Loaded on-demand only when user opens them)
@@ -66,6 +67,7 @@ export default function DashboardPage({ user, onLogout }) {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isUserManagerOpen, setIsUserManagerOpen] = useState(false);
   const [isAiSettingsOpen, setIsAiSettingsOpen] = useState(false);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadPreSelection, setUploadPreSelection] = useState({ categoryId: '', subFolderId: '' });
   const [editingCategory, setEditingCategory] = useState(null);
@@ -505,7 +507,7 @@ export default function DashboardPage({ user, onLogout }) {
         />
 
         {/* Right Content Area */}
-        <main className="flex-1 p-3.5 sm:p-5 md:p-6 overflow-y-auto min-w-0">
+        <main className="flex-1 p-3.5 sm:p-5 md:p-6 pb-24 lg:pb-6 overflow-y-auto min-w-0">
           {loadingData ? (
             <div className="flex items-center justify-center py-20 text-xs text-zinc-500 gap-2">
               <div className="w-5 h-5 border-2 border-[#d0aa61] border-t-transparent rounded-full animate-spin"></div>
@@ -550,6 +552,26 @@ export default function DashboardPage({ user, onLogout }) {
         categories={categories}
         subFolders={subFolders}
         onViewPdf={handleViewDocument}
+        isOpen={isAiModalOpen}
+        onOpenChange={setIsAiModalOpen}
+      />
+
+      {/* Mobile Native App Bottom Navigation Bar (Chỉ hiện trên Mobile/Tablet < 1024px) */}
+      <MobileBottomNav
+        user={user}
+        activeCategory={activeCategory}
+        activeSubFolder={activeSubFolder}
+        onSelectAllDocs={handleSelectAllDocs}
+        onToggleSidebar={() => setIsSidebarOpenMobile(prev => !prev)}
+        onOpenUploadModal={() => {
+          setUploadPreSelection({ categoryId: '', subFolderId: '' });
+          setIsUploadModalOpen(true);
+        }}
+        onOpenAi={() => setIsAiModalOpen(true)}
+        onOpenUserManager={() => setIsUserManagerOpen(true)}
+        onOpenAiSettings={() => setIsAiSettingsOpen(true)}
+        onLogout={onLogout}
+        showToast={showToast}
       />
 
       {/* Lazy-loaded Modals (PDF Viewer & Admin Modals) */}

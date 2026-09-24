@@ -122,6 +122,8 @@ export default function ChatWidget({
   categories = [],
   subFolders = [],
   onViewPdf,
+  isOpen: externalIsOpen,
+  onOpenChange,
 }) {
   const isAdmin = user?.role === "admin";
   const userIdentifier = user?.id || user?.email || "staff";
@@ -191,7 +193,14 @@ export default function ChatWidget({
     : Math.max(0, DAILY_LIMIT - usedCount);
   const isQuotaExhausted = !isAdmin && remainingQuestions <= 0;
 
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
+  const setIsOpen = (val) => {
+    const nextVal = typeof val === 'function' ? val(isOpen) : val;
+    setInternalIsOpen(nextVal);
+    onOpenChange?.(nextVal);
+  };
+  const [isLauncherHovered, setIsLauncherHovered] = useState(false);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [messages, setMessages] = useState([
     {
@@ -377,43 +386,84 @@ export default function ChatWidget({
         "Hệ thống thương hiệu F&B của NS Group gồm những thương hiệu nào và phân khúc ra sao?",
     },
     {
-      title: "Chiến lược 2024 - 2030",
+      title: "Chiến lược 2026 - 2030",
       desc: "Kế hoạch phát triển Bến Thuyền, Thủ Thiêm và vươn ra quốc tế",
       prompt:
-        "Chiến lược và kế hoạch phát triển của NS Group giai đoạn 2024 - 2030 như thế nào?",
+        "Chiến lược và kế hoạch phát triển của NS Group giai đoạn 2026 - 2030 như thế nào?",
     },
   ];
 
   return (
     <>
-      {/* Floating Launcher Button ở góc phải dưới màn hình */}
+      {/* Floating Circular Launcher Button với Biểu tượng Cối Xay Gió NSG AI */}
       {!isOpen && (
-        <div className="fixed bottom-6 right-6 z-40">
-          <button
-            onClick={() => setIsOpen(true)}
-            className="flex items-center gap-3 px-5 py-3.5 bg-white hover:bg-[#faf6ed] text-[#504b44] rounded-full shadow-xl hover:shadow-2xl hover:scale-105 border border-[#d0aa61]/60 hover:border-[#d0aa61] transition-all duration-200 group cursor-pointer"
-          >
-            <NsgWindIcon
-              size="sm"
-              isSpinning={false}
-              className="shrink-0 -ml-1 drop-shadow-xs"
+        <div className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40">
+          <div className="relative group flex items-center justify-end">
+            {/* Tooltip mô tả thông minh bay ngang khi rê chuột (Desktop) */}
+            <div className="absolute right-full mr-3.5 pointer-events-none opacity-0 group-hover:opacity-100 translate-x-3 group-hover:translate-x-0 transition-all duration-300 ease-out z-20 hidden sm:block">
+              <div className="flex items-center gap-2 px-3.5 py-2 bg-white/95 backdrop-blur-md text-[#504b44] text-xs font-bold rounded-2xl border border-[#d0aa61]/60 shadow-xl whitespace-nowrap">
+                <Sparkles
+                  className="w-3.5 h-3.5 text-[#d0aa61] animate-spin"
+                  style={{ animationDuration: "3s" }}
+                />
+                <span>Hỏi Trợ lý AI NSG</span>
+                <span className="text-[10px] text-[#9f7a35] font-normal border-l border-zinc-200 pl-2">
+                  Tra cứu tài liệu
+                </span>
+              </div>
+            </div>
+
+            {/* Vòng hào quang lan tỏa nhấp nháy thu hút sự chú ý (Pulse Radar) */}
+            <span
+              className="absolute inset-0 rounded-full bg-[#d0aa61]/40 animate-ping opacity-60 pointer-events-none"
+              style={{ animationDuration: "2.4s" }}
             />
-            <span className="font-bold text-xs sm:text-sm text-[#504b44] group-hover:text-[#9f7a35] transition-colors">
-              Hỏi trợ lý AI của NSG để tìm nhanh tài liệu
-            </span>
-          </button>
+
+            {/* Vệt ánh sáng viền ngoài (Glow ring) */}
+            <span className="absolute -inset-1 rounded-full bg-gradient-to-r from-[#d0aa61]/40 via-[#9f7a35]/30 to-[#d0aa61]/40 blur-xs group-hover:blur-sm transition-all duration-300 pointer-events-none" />
+
+            {/* Nút tròn chính */}
+            <button
+              onClick={() => setIsOpen(true)}
+              onMouseEnter={() => setIsLauncherHovered(true)}
+              onMouseLeave={() => setIsLauncherHovered(false)}
+              className="relative z-10 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white hover:bg-[#faf6ed] border-2 border-[#d0aa61] shadow-2xl hover:shadow-[0_8px_30px_rgb(208,170,97,0.4)] flex items-center justify-center transition-all duration-300 active:scale-95 group-hover:scale-105 cursor-pointer"
+              title="Hỏi trợ lý AI NSG để tra cứu nhanh tài liệu"
+              aria-label="Mở Trợ lý AI NSG"
+            >
+              {/* Cối xay gió NSG: Tự động quay cánh quạt khi người dùng rê chuột vào */}
+              <NsgWindIcon
+                size="md"
+                isSpinning={isLauncherHovered}
+                className="drop-shadow-xs transition-transform duration-300 group-hover:scale-110"
+              />
+
+              {/* Chấm tròn xanh báo hiệu Trực tuyến (Online) */}
+              <span
+                className="absolute top-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-xs flex items-center justify-center z-20"
+                title="Trợ lý AI sẵn sàng trực tuyến"
+              >
+                <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+              </span>
+
+              {/* Huy hiệu mini "AI" bằng vàng dưới đáy nút */}
+              <span className="absolute -bottom-1 px-1.5 py-0.2 bg-[#504b44] text-[#d0aa61] text-[9px] font-extrabold rounded-full border border-[#d0aa61]/60 shadow-xs z-20 tracking-wider">
+                AI
+              </span>
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Near Full-Screen Modal Dialog (Chiếm khoảng 92% diện tích màn hình, có viền mờ xung quanh) */}
+      {/* Near Full-Screen Modal Dialog (Toàn màn hình trên mobile, viền bo trên desktop) */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 md:p-6 lg:p-8 animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-0 sm:p-5 md:p-6 lg:p-8 animate-in fade-in duration-150"
           onClick={(e) => {
             if (e.target === e.currentTarget) setIsOpen(false);
           }}
         >
-          <div className="w-full max-w-[1450px] h-[92vh] max-h-[960px] bg-white rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-zinc-200/90 animate-in zoom-in-95 duration-150">
+          <div className="w-full max-w-[1450px] h-full sm:h-[92vh] sm:max-h-[960px] bg-white rounded-none sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden border-0 sm:border border-zinc-200/90 animate-in zoom-in-95 duration-150">
             {/* Modal Top Header */}
             <div className="px-5 sm:px-6 py-3.5 bg-[#504b44] text-white flex items-center justify-between border-b border-[#625d55] shrink-0 shadow-sm">
               <div className="flex items-center gap-3">
@@ -533,9 +583,12 @@ export default function ChatWidget({
                                 const isWord =
                                   doc.fileType === "word" ||
                                   doc.id === "doc-nsg-history-profile" ||
-                                  (/\.docx?(\)|$|\?|\s)/i.test(doc.title || "")) ||
-                                  (/\.docx?(\?|$)/i.test(doc.fileUrl || "")) ||
-                                  (doc.title && doc.title.toLowerCase().includes(".doc"));
+                                  /\.docx?(\)|$|\?|\s)/i.test(
+                                    doc.title || "",
+                                  ) ||
+                                  /\.docx?(\?|$)/i.test(doc.fileUrl || "") ||
+                                  (doc.title &&
+                                    doc.title.toLowerCase().includes(".doc"));
 
                                 return (
                                   <div
@@ -615,27 +668,29 @@ export default function ChatWidget({
                       </div>
 
                       {/* Follow-up Suggestion Chips */}
-                      {msg.sender === "bot" && msg.suggestions && msg.suggestions.length > 0 && (
-                        <div className="pt-0.5 space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#9f7a35]">
-                            <Sparkles className="w-3 h-3 text-[#d0aa61]" />
-                            <span>Gợi ý câu hỏi tiếp theo:</span>
+                      {msg.sender === "bot" &&
+                        msg.suggestions &&
+                        msg.suggestions.length > 0 && (
+                          <div className="pt-0.5 space-y-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#9f7a35]">
+                              <Sparkles className="w-3 h-3 text-[#d0aa61]" />
+                              <span>Gợi ý câu hỏi tiếp theo:</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {msg.suggestions.map((sug, sIdx) => (
+                                <button
+                                  key={sIdx}
+                                  onClick={() => handleSend(sug)}
+                                  disabled={isLoadingAI || isQuotaExhausted}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[11.5px] font-medium bg-[#fcf8f0] hover:bg-[#f5ebd6] text-[#78591a] border border-[#d0aa61]/45 hover:border-[#d0aa61] rounded-full transition-all duration-150 hover:shadow-2xs cursor-pointer active:scale-[0.98] text-left"
+                                >
+                                  <ArrowRight className="w-2.5 h-2.5 text-[#d0aa61] shrink-0" />
+                                  <span>{sug}</span>
+                                </button>
+                              ))}
+                            </div>
                           </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {msg.suggestions.map((sug, sIdx) => (
-                              <button
-                                key={sIdx}
-                                onClick={() => handleSend(sug)}
-                                disabled={isLoadingAI || isQuotaExhausted}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11.5px] font-medium bg-[#fcf8f0] hover:bg-[#f5ebd6] text-[#78591a] border border-[#d0aa61]/45 hover:border-[#d0aa61] rounded-full transition-all duration-150 hover:shadow-2xs cursor-pointer active:scale-[0.98] text-left"
-                              >
-                                <ArrowRight className="w-2.5 h-2.5 text-[#d0aa61] shrink-0" />
-                                <span>{sug}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                        )}
 
                       <div
                         className={`text-[10.5px] text-zinc-400 px-1 ${

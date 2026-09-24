@@ -35,7 +35,10 @@ Tập đoàn NS Group (Ngọc Sương Group) có mối liên hệ đặc biệt 
 📄 **Tài liệu tham khảo**:
 Mọi dữ liệu trên đều được ghi chép chính thức trong:
 [TÀI LIỆU: NSG History.docx]`,
-      citedDocNames: ["NSG History.docx", "Hồ Sơ Doanh Nghiệp & Lịch Sử NS Group (NSG History.docx)"],
+      citedDocNames: [
+        "NSG History.docx",
+        "Hồ Sơ Doanh Nghiệp & Lịch Sử NS Group (NSG History.docx)",
+      ],
     };
   }
 
@@ -77,7 +80,10 @@ Linh hồn và người dẫn dắt bản sắc văn hóa ẩm thực của NS G
 
 📄 **Tài liệu tham khảo**:
 [TÀI LIỆU: NSG History.docx]`,
-      citedDocNames: ["NSG History.docx", "Hồ Sơ Doanh Nghiệp & Lịch Sử NS Group (NSG History.docx)"],
+      citedDocNames: [
+        "NSG History.docx",
+        "Hồ Sơ Doanh Nghiệp & Lịch Sử NS Group (NSG History.docx)",
+      ],
     };
   }
 
@@ -110,11 +116,14 @@ Thương hiệu **Ngọc Sương** được sáng lập từ năm **1955** tại
   + Resort Ngọc Sương Cam Ranh là phim trường độc quyền cho *"Những Nụ Hôn Rực Rỡ"* (2010) và *"Mỹ Nhân Kế"* (2013).
   + Năm 2012: Khai trương Nhà hàng Ngọc Sương Bến Thuyền (Nguyễn Văn Trỗi). Năm 2015 ra mắt Dinner Show *"Lung Linh Sài Gòn"* (3 tỷ đồng).
 - **Giai đoạn 5 (2021 - Nay): Hiện đại hóa & Vươn tầm tương lai**
-  + Tái định vị hệ sinh thái thương hiệu đa phân khúc và triển khai chiến lược quốc tế hóa 2024-2030.
+  + Tái định vị hệ sinh thái thương hiệu đa phân khúc và triển khai chiến lược quốc tế hóa 2026-2030.
 
 📄 **Tài liệu tham khảo**:
 [TÀI LIỆU: NSG History.docx]`,
-      citedDocNames: ["NSG History.docx", "Hồ Sơ Doanh Nghiệp & Lịch Sử NS Group (NSG History.docx)"],
+      citedDocNames: [
+        "NSG History.docx",
+        "Hồ Sơ Doanh Nghiệp & Lịch Sử NS Group (NSG History.docx)",
+      ],
     };
   }
 
@@ -142,7 +151,10 @@ Kho tàng ẩm thực của NS Group là sự kết tinh kỳ diệu giữa **h�
 
 📄 **Tài liệu tham khảo**:
 [TÀI LIỆU: NSG History.docx]`,
-      citedDocNames: ["NSG History.docx", "Hồ Sơ Doanh Nghiệp & Lịch Sử NS Group (NSG History.docx)"],
+      citedDocNames: [
+        "NSG History.docx",
+        "Hồ Sơ Doanh Nghiệp & Lịch Sử NS Group (NSG History.docx)",
+      ],
     };
   }
 
@@ -174,15 +186,18 @@ NS Group sở hữu hệ thống thương hiệu đa phân khúc (Portfolio Bran
 
 📄 **Tài liệu tham khảo**:
 [TÀI LIỆU: NSG History.docx]`,
-      citedDocNames: ["NSG History.docx", "Hồ Sơ Doanh Nghiệp & Lịch Sử NS Group (NSG History.docx)"],
+      citedDocNames: [
+        "NSG History.docx",
+        "Hồ Sơ Doanh Nghiệp & Lịch Sử NS Group (NSG History.docx)",
+      ],
     };
   }
 
-  // 6. Chiến lược & Kế hoạch phát triển 2024 - 2030
+  // 6. Chiến lược & Kế hoạch phát triển 2026 - 2030
   if (
     q.includes("chiến lược") ||
     q.includes("kế hoạch") ||
-    q.includes("2024") ||
+    q.includes("2026") ||
     q.includes("2025") ||
     q.includes("2030") ||
     q.includes("thủ thiêm") ||
@@ -194,10 +209,10 @@ NS Group sở hữu hệ thống thương hiệu đa phân khúc (Portfolio Bran
   ) {
     return {
       text: `📌 **Tóm tắt cốt lõi**:
-Chiến lược 2024 – 2030 của NS Group kiên định với định hướng **"Chuyên nghiệp hóa hệ thống quản lý, tự động hóa sản xuất nhưng kiên quyết giữ chất lượng tươi ngon di sản"**, chuẩn bị nền tảng để đưa ẩm thực Việt Nam vươn ra quốc tế.
+Chiến lược 2026 – 2030 của NS Group kiên định với định hướng **"Chuyên nghiệp hóa hệ thống quản lý, tự động hóa sản xuất nhưng kiên quyết giữ chất lượng tươi ngon di sản"**, chuẩn bị nền tảng để đưa ẩm thực Việt Nam vươn ra quốc tế.
 
 💡 **Kế hoạch triển khai trọng điểm**:
-- **Giai đoạn 1 (2024 – trước 2025)**:
+- **Giai đoạn 1 (2026 – trước 2025)**:
   + **Dự án Bến Thuyền (Nguyễn Văn Trỗi)**: Cải tạo toàn diện theo concept *"Phố dạo bờ kênh - Canal Promenade"* với 3 thương hiệu: Yến Bay, Exocafé, KingClam.
   + **Hạ tầng cốt lõi**: Xây dựng Bếp trung tâm (**Central Kitchen**) và Học viện đào tạo ẩm thực (**NS Academy**).
   + **Mở rộng địa bàn Thủ Thiêm**: Phát triển tại Khu đô thị Thủ Thiêm (dự án *The Opera Complex*) với bộ ba thương hiệu: Marina, KingClam, Chợ Cũ.
@@ -208,7 +223,10 @@ Chiến lược 2024 – 2030 của NS Group kiên định với định hướn
 
 📄 **Tài liệu tham khảo**:
 [TÀI LIỆU: NSG History.docx]`,
-      citedDocNames: ["NSG History.docx", "Hồ Sơ Doanh Nghiệp & Lịch Sử NS Group (NSG History.docx)"],
+      citedDocNames: [
+        "NSG History.docx",
+        "Hồ Sơ Doanh Nghiệp & Lịch Sử NS Group (NSG History.docx)",
+      ],
     };
   }
 

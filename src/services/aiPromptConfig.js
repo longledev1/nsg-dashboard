@@ -12,7 +12,7 @@ import { NSG_HISTORY_CONTENT } from "../lib/constants";
 export const AI_CUSTOM_RULES = {
   // Tên của trợ lý AI hiển thị
   BOT_NAME: "NSG AI Assistant",
-  
+
   // Tên doanh nghiệp
   COMPANY_NAME: "Tập đoàn NS Group (Ngọc Sương Group)",
 
@@ -20,7 +20,8 @@ export const AI_CUSTOM_RULES = {
   TONE: "Lịch sự, tự tin, chuyên nghiệp, súc tích và am hiểu sâu sắc về văn hóa ẩm thực & dự án của NSG",
 
   // Cách xưng hô mặc định
-  PERSONA: "Xưng là 'Tôi' hoặc 'NSG AI Assistant', gọi người hỏi là 'Bạn' hoặc 'Anh/Chị'",
+  PERSONA:
+    "Xưng là 'Tôi' hoặc 'NSG AI Assistant', gọi người hỏi là 'Bạn' hoặc 'Anh/Chị'",
 
   // Hướng dẫn định dạng bố cục trả lời
   FORMAT_STYLE: `
@@ -45,8 +46,12 @@ export function buildSystemInstruction({
   historyContent = NSG_HISTORY_CONTENT,
   aiMemories = [],
 }) {
-  const activeRemember = (aiMemories || []).filter(m => m.isActive && m.type === 'remember');
-  const activeForget = (aiMemories || []).filter(m => m.isActive && m.type === 'forget');
+  const activeRemember = (aiMemories || []).filter(
+    (m) => m.isActive && m.type === "remember",
+  );
+  const activeForget = (aiMemories || []).filter(
+    (m) => m.isActive && m.type === "forget",
+  );
 
   let memoryDirectivesText = "";
   if (activeRemember.length > 0 || activeForget.length > 0) {
@@ -54,10 +59,10 @@ export function buildSystemInstruction({
 CHỈ THỊ CẬP NHẬT ĐẶC BIỆT TỪ BAN LÃNH ĐẠO (ĐỘ ƯU TIÊN CAO NHẤT - GHI ĐÈ LÊN TÀI LIỆU CŨ):
 ======================================================================`;
     if (activeRemember.length > 0) {
-      memoryDirectivesText += `\n★ CÁC THÔNG TIN MỚI BẮT BUỘC GHI NHỚ VÀ ÁP DỤNG:\n${activeRemember.map((m, idx) => `${idx + 1}. ${m.content}`).join('\n')}\n`;
+      memoryDirectivesText += `\n★ CÁC THÔNG TIN MỚI BẮT BUỘC GHI NHỚ VÀ ÁP DỤNG:\n${activeRemember.map((m, idx) => `${idx + 1}. ${m.content}`).join("\n")}\n`;
     }
     if (activeForget.length > 0) {
-      memoryDirectivesText += `\n⛔ CÁC THÔNG TIN BẮT BUỘC LOẠI BỎ / CẤM ĐỀ CẬP (TUYỆT ĐỐI TUÂN THỦ):\n${activeForget.map((m, idx) => `${idx + 1}. ${m.content}`).join('\n')}\n`;
+      memoryDirectivesText += `\n⛔ CÁC THÔNG TIN BẮT BUỘC LOẠI BỎ / CẤM ĐỀ CẬP (TUYỆT ĐỐI TUÂN THỦ):\n${activeForget.map((m, idx) => `${idx + 1}. ${m.content}`).join("\n")}\n`;
     }
     memoryDirectivesText += `======================================================================\n`;
   }
@@ -91,7 +96,7 @@ QUY TẮC PHẢN HỒI CỦA AI (BẠN PHẢI TUÂN THỦ NGHIÊM NGẶT):
    - Khi một thương hiệu hoặc dự án xuất hiện ở nhiều thư mục khác nhau (VD: Exotel trong FNB và Exotel trong Estate), hãy PHÂN BIỆT RÕ RÀNG thông tin của từng folder/danh mục tương ứng, KHÔNG ĐƯỢC gộp nhầm hay lặp lại trùng lặp.
 
 3. KIẾN THỨC LỊCH SỬ & LÃNH ĐẠO CỐT LÕI:
-   - Nguồn gốc tên gọi "Ngọc Sương" (1955, cụ Trần Tương lấy tên vợ & con gái); biểu tượng cối xay gió Trại Mát Cam Ranh; giai đoạn ông Trần Anh Dũng kế nghiệp 1968; giai đoạn tu nghiệp Pháp mở chuỗi nhà hàng Paris (1977-1987); các phim bom tấn tại Resort Cam Ranh ("Những Nụ Hôn Rực Rỡ" 2010, "Mỹ Nhân Kế" 2013); Dinner Show "Lung Linh Sài Gòn" (2015); và chiến lược chuyển mình hiện đại 2024-2030 (Canal Promenade Bến Thuyền, Central Kitchen, NS Academy, Thủ Thiêm The Opera Complex...).
+   - Nguồn gốc tên gọi "Ngọc Sương" (1955, cụ Trần Tương lấy tên vợ & con gái); biểu tượng cối xay gió Trại Mát Cam Ranh; giai đoạn ông Trần Anh Dũng kế nghiệp 1968; giai đoạn tu nghiệp Pháp mở chuỗi nhà hàng Paris (1977-1987); các phim bom tấn tại Resort Cam Ranh ("Những Nụ Hôn Rực Rỡ" 2010, "Mỹ Nhân Kế" 2013); Dinner Show "Lung Linh Sài Gòn" (2015); và chiến lược chuyển mình hiện đại 2026-2030 (Canal Promenade Bến Thuyền, Central Kitchen, NS Academy, Thủ Thiêm The Opera Complex...).
    - Ban lãnh đạo: Chủ tịch Trần Anh Dũng, Lê Hoàng Hải, Lâm Khắc Bảo Lân, Mạc Vi Chi, Thái Minh Toàn, Trần Pascal Quang. Nhân sự Phạm Đăng Phú đã được miễn nhiệm.
 
 4. BỐ CỤC CÂU TRẢ LỜI:

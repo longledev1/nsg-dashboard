@@ -122,6 +122,7 @@ export async function uploadPdfFileToStorage(file) {
 // RE-EXPORT CATEGORY & SUBFOLDER SERVICES
 // =========================================
 export {
+  sortCategoriesWithGeneralFirst,
   loadCategories,
   addCategoryToDb,
   updateCategoryInDb,

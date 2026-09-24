@@ -162,7 +162,7 @@ export default function LoginPage({ onLoginSuccess, onBackToWelcome }) {
 
         {/* Footer Note */}
         <div className="w-full text-center text-[11px] text-zinc-400 shrink-0 pt-6 border-t border-zinc-100 mt-6">
-          &copy; 2024 NS Group. All rights reserved.
+          &copy; 2026 NS Group. All rights reserved.
         </div>
       </div>
     </div>

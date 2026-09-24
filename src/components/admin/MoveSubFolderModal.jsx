@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, FolderOutput, Check, ArrowRight, Folder } from 'lucide-react';
+import { sortCategoriesWithGeneralFirst } from '../../services/documentService';
 
 export default function MoveSubFolderModal({
   subFolder,
@@ -84,7 +85,7 @@ export default function MoveSubFolderModal({
               onChange={(e) => setSelectedCategoryId(e.target.value)}
               className="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:border-[#d0aa61] text-zinc-900 font-medium cursor-pointer"
             >
-              {categories.map(c => (
+              {sortCategoriesWithGeneralFirst(categories).map(c => (
                 <option key={c.id} value={c.id}>
                   {c.name} {c.id === subFolder.categoryId ? '(Hiện tại)' : ''}
                 </option>

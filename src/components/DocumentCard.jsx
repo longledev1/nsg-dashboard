@@ -265,7 +265,7 @@ export default function DocumentCard({
                   e.stopPropagation();
                   setIsMenuOpen(prev => !prev);
                 }}
-                className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center justify-center ${
+                className={`p-2 sm:p-1.5 rounded-lg border transition-all cursor-pointer flex items-center justify-center min-w-[34px] min-h-[34px] sm:min-w-0 sm:min-h-0 ${
                   isMenuOpen 
                     ? 'bg-[#faf6ed] border-[#d0aa61] text-[#9f7a35] shadow-xs' 
                     : 'bg-zinc-50 hover:bg-white border-zinc-200 text-zinc-500 hover:text-[#9f7a35]'
@@ -273,7 +273,7 @@ export default function DocumentCard({
                 title="Tùy chọn tài liệu"
                 aria-label="Tùy chọn tài liệu"
               >
-                <MoreVertical className="w-3.5 h-3.5" />
+                <MoreVertical className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               </button>
 
               {/* Dropdown Menu */}

@@ -1,39 +1,37 @@
 // Hằng số Hệ thống NSG Profile & Brand Portal
 
-
 export const DEFAULT_CATEGORIES = [
   {
-    id: 'cat-profile',
-    name: 'Hồ Sơ Năng Lực',
-    description: 'Hồ sơ năng lực & Lịch sử doanh nghiệp NS Group',
+    id: "cat-general",
+    name: "General",
+    description: "Danh mục Chung hệ thống bảo vệ",
     isDefault: true,
-    color: '#9f7a35', // NSG Antique Gold
+    color: "#d0aa61", // NSG Gold
   },
   {
-    id: 'cat-fnb',
-    name: 'FNB',
-    description: 'Food & Beverage Projects & Concept Documents',
+    id: "cat-profile",
+    name: "Hồ Sơ Năng Lực",
+    description: "Hồ sơ năng lực & Lịch sử doanh nghiệp NS Group",
     isDefault: true,
-    color: '#059669', // Emerald Green
+    color: "#9f7a35", // NSG Antique Gold
   },
   {
-    id: 'cat-estate',
-    name: 'Estate',
-    description: 'Bất động sản & Resort Concept Documents',
+    id: "cat-fnb",
+    name: "FNB",
+    description: "Food & Beverage Projects & Concept Documents",
     isDefault: true,
-    color: '#b45309', // Amber Gold
+    color: "#059669", // Emerald Green
   },
   {
-    id: 'cat-general',
-    name: 'General',
-    description: 'Danh mục Chung hệ thống bảo vệ',
+    id: "cat-estate",
+    name: "Estate",
+    description: "Bất động sản & Resort Concept Documents",
     isDefault: true,
-    color: '#d0aa61', // NSG Gold
+    color: "#b45309", // Amber Gold
   },
 ];
 
 export const INITIAL_SUBFOLDERS = [];
-
 
 export const NSG_HISTORY_CONTENT = `TÀI LIỆU TỔNG HỢP HỒ SƠ DOANH NGHIỆP: NS GROUP (NGỌC SƯƠNG GROUP)
 (Dữ liệu chuẩn hóa phục vụ đào tạo hệ thống và nhân sự nội bộ)
@@ -106,10 +104,10 @@ IV. BỘ MÁY LÃNH ĐẠO & NHÂN SỰ CHỦ LỰC (KEY PERSONNEL)
 6. Trần Pascal Quang - Exora (Thế hệ thứ 3): Cung ứng giải pháp toàn diện về trang thiết bị, kiến trúc và phong cách sống sáng tạo.
 * GHI CHÚ ĐẶC BIỆT: Nhân sự Phạm Đăng Phú đã được miễn nhiệm, không còn thuộc bộ máy nhân sự của tập đoàn NS Group.
 
-V. CHIẾN LƯỢC & KẾ HOẠCH PHÁT TRIỂN (2024 – 2030)
+V. CHIẾN LƯỢC & KẾ HOẠCH PHÁT TRIỂN (2026 – 2030)
 1. Triết lý phát triển: Chuyên nghiệp hóa hệ thống quản lý, tự động hóa khâu sản xuất nhưng kiên quyết giữ chất lượng tươi ngon; kết hợp nghệ thuật chiêu đãi truyền thống với phong cách hiện đại.
 2. Kế hoạch triển khai cụ thể:
-- Giai đoạn 1 (2024 – trước 2025):
+- Giai đoạn 1 (2026 – trước 2025):
   + Dự án Bến Thuyền (Nguyễn Văn Trỗi): Cải tạo toàn diện theo chủ đề "Phố dạo bờ kênh – Canal Promenade" với 3 thương hiệu: Yến Bay, Exocafé, KingClam.
   + Hạ tầng cốt lõi: Xây dựng Bếp trung tâm (Central Kitchen) và Học viện đào tạo ẩm thực (NS Academy).
   + Mở rộng địa bàn mới: Phát triển tại Khu đô thị Thủ Thiêm (dự án The Opera Complex) với bộ ba thương hiệu: Marina, KingClam, Chợ Cũ.
@@ -120,33 +118,33 @@ V. CHIẾN LƯỢC & KẾ HOẠCH PHÁT TRIỂN (2024 – 2030)
 
 export const INITIAL_DOCUMENTS = [
   {
-    id: 'doc-nsg-history-profile',
-    title: 'Hồ Sơ Doanh Nghiệp & Lịch Sử NS Group (NSG History.docx)',
-    description: 'Tài liệu tổng hợp hồ sơ doanh nghiệp NS Group (Ngọc Sương Group), Chủ tịch HĐQT Trần Anh Dũng, Ban lãnh đạo chủ chốt, lịch sử 1955-nay, phim trường điện ảnh Resort Cam Ranh (Mỹ Nhân Kế, Những Nụ Hôn Rực Rỡ), hệ thống thương hiệu và chiến lược 2024-2030.',
+    id: "doc-nsg-history-profile",
+    title: "Hồ Sơ Doanh Nghiệp & Lịch Sử NS Group (NSG History.docx)",
+    description:
+      "Tài liệu tổng hợp hồ sơ doanh nghiệp NS Group (Ngọc Sương Group), Chủ tịch HĐQT Trần Anh Dũng, Ban lãnh đạo chủ chốt, lịch sử 1955-nay, phim trường điện ảnh Resort Cam Ranh (Mỹ Nhân Kế, Những Nụ Hôn Rực Rỡ), hệ thống thương hiệu và chiến lược 2026-2030.",
     content: NSG_HISTORY_CONTENT,
-    categoryId: 'cat-general',
+    categoryId: "cat-general",
     subFolderId: null,
-    fileUrl: '/NSG History.docx',
-    fileSize: '35.2 KB',
-    fileType: 'word',
+    fileUrl: "/NSG History.docx",
+    fileSize: "35.2 KB",
+    fileType: "word",
     tags: [
-      'NSG',
-      'LỊCH SỬ',
-      'CHỦ TỊCH',
-      'BAN LÃNH ĐẠO',
-      'PROFILE',
-      'ĐIỆN ẢNH',
-      'LÀM PHIM',
-      'PHIM TRƯỜNG',
-      'MỸ NHÂN KẾ',
-      'NHỮNG NỤ HÔN RỰC RỠ',
-      'THƯƠNG HIỆU',
-      'CHIẾN LƯỢC',
-      'RESORT CAM RANH'
+      "NSG",
+      "LỊCH SỬ",
+      "CHỦ TỊCH",
+      "BAN LÃNH ĐẠO",
+      "PROFILE",
+      "ĐIỆN ẢNH",
+      "LÀM PHIM",
+      "PHIM TRƯỜNG",
+      "MỸ NHÂN KẾ",
+      "NHỮNG NỤ HÔN RỰC RỠ",
+      "THƯƠNG HIỆU",
+      "CHIẾN LƯỢC",
+      "RESORT CAM RANH",
     ],
-    createdAt: '2024-01-01',
+    createdAt: "2026-01-01",
     isProtected: true,
     isDefault: true,
   },
 ];
-

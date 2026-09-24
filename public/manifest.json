@@ -1,0 +1,24 @@
+{
+  "name": "NSG Corporate Profile & Portal",
+  "short_name": "NSG Portal",
+  "description": "Cổng thông tin & Kho tài liệu nội bộ Tập đoàn NSG",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fcfaf7",
+  "theme_color": "#504b44",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/logo nsg.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo nsg.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

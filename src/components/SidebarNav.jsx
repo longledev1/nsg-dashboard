@@ -16,7 +16,10 @@ import {
   FolderOutput,
   X,
 } from "lucide-react";
-import { sortSubFoldersWithGeneralFirst } from "../services/documentService";
+import {
+  sortCategoriesWithGeneralFirst,
+  sortSubFoldersWithGeneralFirst,
+} from "../services/documentService";
 
 export default function SidebarNav({
   categories,
@@ -172,9 +175,9 @@ export default function SidebarNav({
           <div className="my-2 border-t border-zinc-100"></div>
 
           {/* Dynamic Category List */}
-          {categories.map((category) => {
+          {sortCategoriesWithGeneralFirst(categories).map((category) => {
             const categorySubFolders = sortSubFoldersWithGeneralFirst(
-              subFolders.filter((sf) => sf.categoryId === category.id)
+              subFolders.filter((sf) => sf.categoryId === category.id),
             );
             const isExpanded = expandedCategories[category.id];
             const isCatActive =
@@ -200,7 +203,7 @@ export default function SidebarNav({
                     onClick={() => handleCategoryClick(category.id)}
                   >
                     {categorySubFolders.length > 0 ? (
-                      <button 
+                      <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -306,7 +309,9 @@ export default function SidebarNav({
 
                       // Đếm số lượng tài liệu có trong sub-folder này
                       const subFolderDocCount = (documents || []).filter(
-                        (d) => d.categoryId === category.id && d.subFolderId === subFolder.id
+                        (d) =>
+                          d.categoryId === category.id &&
+                          d.subFolderId === subFolder.id,
                       ).length;
 
                       return (
@@ -320,7 +325,9 @@ export default function SidebarNav({
                         >
                           <button
                             type="button"
-                            onClick={() => handleSubFolderClick(category.id, subFolder.id)}
+                            onClick={() =>
+                              handleSubFolderClick(category.id, subFolder.id)
+                            }
                             className="flex items-center gap-2 flex-1 min-w-0 text-left truncate cursor-pointer py-0.5"
                           >
                             <FolderOpen
@@ -429,65 +436,65 @@ export default function SidebarNav({
           })}
         </div>
 
-      {/* Storage Quota Tracker Widget */}
-      {(() => {
-        const totalStorageMB = (documents || []).reduce((acc, doc) => {
-          if (!doc.fileSize) return acc;
-          const str = doc.fileSize.toString().toUpperCase().trim();
-          const val = parseFloat(str) || 0;
-          if (str.includes("GB")) return acc + val * 1024;
-          if (str.includes("KB")) return acc + val / 1024;
-          return acc + val;
-        }, 0);
+        {/* Storage Quota Tracker Widget */}
+        {(() => {
+          const totalStorageMB = (documents || []).reduce((acc, doc) => {
+            if (!doc.fileSize) return acc;
+            const str = doc.fileSize.toString().toUpperCase().trim();
+            const val = parseFloat(str) || 0;
+            if (str.includes("GB")) return acc + val * 1024;
+            if (str.includes("KB")) return acc + val / 1024;
+            return acc + val;
+          }, 0);
 
-        const storageLimitMB = 1024; // 1 GB hạn mức
-        const storagePercent = Math.min(
-          Math.round((totalStorageMB / storageLimitMB) * 100),
-          100
-        );
+          const storageLimitMB = 1024; // 1 GB hạn mức
+          const storagePercent = Math.min(
+            Math.round((totalStorageMB / storageLimitMB) * 100),
+            100,
+          );
 
-        return (
-          <div className="p-3 border-t border-zinc-200 bg-[#faf6ed]/70">
-            <div className="flex items-center justify-between text-xs mb-1.5">
-              <div className="flex items-center gap-1.5 font-semibold text-zinc-700">
-                <HardDrive className="w-3.5 h-3.5 text-[#9f7a35]" />
-                <span>Dung lượng lưu trữ</span>
+          return (
+            <div className="p-3 border-t border-zinc-200 bg-[#faf6ed]/70">
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <div className="flex items-center gap-1.5 font-semibold text-zinc-700">
+                  <HardDrive className="w-3.5 h-3.5 text-[#9f7a35]" />
+                  <span>Dung lượng lưu trữ</span>
+                </div>
+                <span className="font-bold text-[11px] text-[#9f7a35]">
+                  {totalStorageMB < 1
+                    ? `${(totalStorageMB * 1024).toFixed(0)} KB`
+                    : `${totalStorageMB.toFixed(1)} MB`}{" "}
+                  / 1 GB
+                </span>
               </div>
-              <span className="font-bold text-[11px] text-[#9f7a35]">
-                {totalStorageMB < 1
-                  ? `${(totalStorageMB * 1024).toFixed(0)} KB`
-                  : `${totalStorageMB.toFixed(1)} MB`}{" "}
-                / 1 GB
-              </span>
-            </div>
 
-            {/* Progress Bar */}
-            <div className="w-full bg-zinc-200 h-2 rounded-full overflow-hidden shadow-inner mb-1.5">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ease-out ${
-                  storagePercent > 90
-                    ? "bg-red-500"
-                    : storagePercent > 75
-                    ? "bg-amber-500"
-                    : "bg-gradient-to-r from-[#d0aa61] to-[#9f7a35]"
-                }`}
-                style={{ width: `${Math.max(storagePercent, 2)}%` }}
-              />
-            </div>
+              {/* Progress Bar */}
+              <div className="w-full bg-zinc-200 h-2 rounded-full overflow-hidden shadow-inner mb-1.5">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ease-out ${
+                    storagePercent > 90
+                      ? "bg-red-500"
+                      : storagePercent > 75
+                        ? "bg-amber-500"
+                        : "bg-gradient-to-r from-[#d0aa61] to-[#9f7a35]"
+                  }`}
+                  style={{ width: `${Math.max(storagePercent, 2)}%` }}
+                />
+              </div>
 
-            <div className="flex items-center justify-between text-[10px] text-zinc-500 font-medium">
-              <span>{documents.length} tài liệu</span>
-              <span>{storagePercent}% đã dùng</span>
+              <div className="flex items-center justify-between text-[10px] text-zinc-500 font-medium">
+                <span>{documents.length} tài liệu</span>
+                <span>{storagePercent}% đã dùng</span>
+              </div>
             </div>
-          </div>
-        );
-      })()}
+          );
+        })()}
 
-      {/* Footer Info */}
-      <div className="py-2 px-3 border-t border-zinc-100 text-[10px] text-zinc-400 text-center bg-zinc-50/50">
-        NS Group &copy; 2024 Portal
-      </div>
-    </aside>
+        {/* Footer Info */}
+        <div className="py-2 px-3 border-t border-zinc-100 text-[10px] text-zinc-400 text-center bg-zinc-50/50">
+          NS Group &copy; 2026 Portal
+        </div>
+      </aside>
     </>
   );
 }

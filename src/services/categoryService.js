@@ -6,6 +6,19 @@ import { DEFAULT_CATEGORIES } from '../lib/constants';
 // Single Source of Truth: Supabase PostgreSQL
 // =========================================
 
+/**
+ * Helper sắp xếp Danh mục với General (cha) luôn đứng đầu danh sách
+ */
+export function sortCategoriesWithGeneralFirst(categories = []) {
+  return [...categories].sort((a, b) => {
+    const aGen = a.id === 'cat-general' || a.name?.trim().toLowerCase() === 'general';
+    const bGen = b.id === 'cat-general' || b.name?.trim().toLowerCase() === 'general';
+    if (aGen && !bGen) return -1;
+    if (!aGen && bGen) return 1;
+    return 0;
+  });
+}
+
 export async function loadCategories() {
   const defaultIds = ['cat-profile', 'cat-fnb', 'cat-estate', 'cat-general'];
 
@@ -17,12 +30,13 @@ export async function loadCategories() {
         .order('created_at', { ascending: true });
 
       if (!error && data && data.length > 0) {
-        return data.map(c => ({
+        const mapped = data.map(c => ({
           id: c.id,
           name: c.name,
           isDefault: defaultIds.includes(c.id),
           color: c.color,
         }));
+        return sortCategoriesWithGeneralFirst(mapped);
       }
     } catch (err) {
       console.warn('Load categories from DB failed:', err);
@@ -30,7 +44,7 @@ export async function loadCategories() {
   }
 
   // Dự phòng danh mục mặc định ban đầu nếu DB chưa có bản ghi
-  return DEFAULT_CATEGORIES;
+  return sortCategoriesWithGeneralFirst(DEFAULT_CATEGORIES);
 }
 
 export async function addCategoryToDb(category) {

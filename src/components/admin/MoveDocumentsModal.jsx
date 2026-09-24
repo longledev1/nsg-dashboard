@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, FolderOutput, Check } from 'lucide-react';
-import { sortSubFoldersWithGeneralFirst } from '../../services/documentService';
+import { sortSubFoldersWithGeneralFirst, sortCategoriesWithGeneralFirst } from '../../services/documentService';
 
 export default function MoveDocumentsModal({
   selectedCount,
@@ -9,7 +9,8 @@ export default function MoveDocumentsModal({
   onConfirmMove,
   onClose
 }) {
-  const [selectedCategory, setSelectedCategory] = useState(categories[0]?.id || '');
+  const sortedCategories = sortCategoriesWithGeneralFirst(categories);
+  const [selectedCategory, setSelectedCategory] = useState(sortedCategories[0]?.id || '');
   const [selectedSubFolder, setSelectedSubFolder] = useState('');
 
   const availableSubFolders = sortSubFoldersWithGeneralFirst(
@@ -65,7 +66,7 @@ export default function MoveDocumentsModal({
               }}
               className="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:border-[#d0aa61] text-zinc-900"
             >
-              {categories.map(c => (
+              {sortedCategories.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>

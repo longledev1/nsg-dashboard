@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, FolderPlus, Plus, Lock, Trash2, Folder, Layers, Edit2, Check, FolderOutput } from 'lucide-react';
+import { sortCategoriesWithGeneralFirst } from '../../services/documentService';
 
 export default function CategoryManagerModal({
   categories,
@@ -123,7 +124,7 @@ export default function CategoryManagerModal({
                   onChange={(e) => setSelectedCatForSub(e.target.value)}
                   className="w-full px-3 py-2 text-xs bg-white border border-zinc-200 rounded-lg focus:outline-none focus:border-[#d0aa61]"
                 >
-                  {categories.map(c => (
+                  {sortCategoriesWithGeneralFirst(categories).map(c => (
                     <option key={c.id} value={c.id}>
                       {c.name} {c.isDefault ? '(Mặc định)' : ''}
                     </option>
@@ -291,7 +292,7 @@ export default function CategoryManagerModal({
                 Danh sách Danh mục Hiện có ({categories.length})
               </span>
 
-              {categories.map((cat) => (
+              {sortCategoriesWithGeneralFirst(categories).map((cat) => (
                 <div
                   key={cat.id}
                   className="flex items-center justify-between p-2.5 rounded-lg border border-zinc-200 bg-zinc-50/50 hover:bg-zinc-50 text-xs"

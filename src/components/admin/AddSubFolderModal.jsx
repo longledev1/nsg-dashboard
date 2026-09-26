@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { X, FolderPlus, Plus } from "lucide-react";
+import { X, FolderPlus, Plus, ShieldAlert } from "lucide-react";
 
 export default function AddSubFolderModal({ category, onSave, onClose }) {
   const [name, setName] = useState("");
+  const [isAdminOnly, setIsAdminOnly] = useState(false);
 
   if (!category) return null;
 
@@ -15,13 +16,15 @@ export default function AddSubFolderModal({ category, onSave, onClose }) {
       categoryId: category.id,
       name: name.trim(),
       description: `Thư mục con của ${category.name}`,
+      minRole: isAdminOnly ? "admin" : null,
+      isRestricted: isAdminOnly,
     });
 
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-zinc-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 bg-zinc-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200 font-sans">
       <div className="bg-white border border-zinc-200 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
         <div className="px-4 py-3 bg-[#504b44] text-white flex items-center justify-between">
@@ -34,7 +37,7 @@ export default function AddSubFolderModal({ category, onSave, onClose }) {
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-zinc-300 hover:text-white rounded transition-colors"
+            className="p-1 text-zinc-300 hover:text-white rounded transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -57,6 +60,27 @@ export default function AddSubFolderModal({ category, onSave, onClose }) {
             />
           </div>
 
+          {/* Phân quyền bảo mật: Ẩn/Hiện với Nhân viên */}
+          <div className="pt-2 border-t border-zinc-100">
+            <label className="flex items-start gap-2.5 cursor-pointer p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/90 hover:bg-amber-100/50 transition-colors">
+              <input
+                type="checkbox"
+                checked={isAdminOnly}
+                onChange={(e) => setIsAdminOnly(e.target.checked)}
+                className="mt-0.5 rounded text-[#d0aa61] focus:ring-[#d0aa61] cursor-pointer"
+              />
+              <div>
+                <span className="font-semibold text-zinc-900 flex items-center gap-1.5 text-xs">
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                  Ẩn folder này đối với Nhân viên (Chỉ Admin)
+                </span>
+                <p className="text-[11px] text-zinc-500 mt-0.5 leading-snug">
+                  Khi bật, nhân viên sẽ không nhìn thấy folder này và AI sẽ tự động loại bỏ tài liệu bên trong khỏi câu trả lời.
+                </p>
+              </div>
+            </label>
+          </div>
+
           <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100">
             <button
               type="button"
@@ -68,7 +92,7 @@ export default function AddSubFolderModal({ category, onSave, onClose }) {
             <button
               type="submit"
               disabled={!name.trim()}
-              className="px-4 py-1.5 bg-[#d0aa61] hover:bg-[#b89149] disabled:opacity-50 text-[#504b44] font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+              className="px-4 py-1.5 bg-[#d0aa61] hover:bg-[#b89149] disabled:opacity-50 text-[#504b44] font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
             >
               <Plus className="w-3.5 h-3.5" />
               Tạo Folder ngay

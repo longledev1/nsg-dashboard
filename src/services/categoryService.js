@@ -45,12 +45,16 @@ export async function loadCategories() {
           }
         }
 
-        const mapped = data.map(c => ({
-          id: c.id,
-          name: c.name,
-          isDefault: defaultIds.includes(c.id) || Boolean(c.is_default),
-          color: c.color,
-        }));
+        const mapped = data.map(c => {
+          const defaultDef = DEFAULT_CATEGORIES.find(dc => dc.id === c.id);
+          return {
+            id: c.id,
+            name: c.name,
+            isDefault: defaultIds.includes(c.id) || Boolean(c.is_default),
+            minRole: c.min_role || (defaultDef?.minRole) || (c.id === 'cat-phap-ly' ? 'admin' : null),
+            color: c.color,
+          };
+        });
         return sortCategoriesWithGeneralFirst(mapped);
       }
     } catch (err) {

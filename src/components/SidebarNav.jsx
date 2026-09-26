@@ -15,6 +15,8 @@ import {
   HardDrive,
   FolderOutput,
   X,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   sortCategoriesWithGeneralFirst,
@@ -25,6 +27,8 @@ export default function SidebarNav({
   categories,
   subFolders,
   documents = [],
+  restrictedFolders = [],
+  onToggleFolderVisibility,
   activeCategory,
   activeSubFolder,
   onSelectCategory,
@@ -90,7 +94,7 @@ export default function SidebarNav({
       {/* Sidebar Drawer Container */}
       <aside
         className={`bg-white border-r border-zinc-200 flex flex-col select-none transition-transform duration-300 ease-in-out
-          fixed top-0 bottom-0 left-0 z-50 w-72 max-w-[85vw] h-full shadow-2xl lg:static lg:h-[calc(100vh-4rem)] lg:w-64 lg:sticky lg:top-16 lg:z-10 lg:shadow-none lg:translate-x-0
+          fixed top-0 bottom-0 left-0 z-50 w-72 max-w-[85vw] h-full shadow-2xl lg:static lg:h-[calc(100vh-4rem)] lg:w-72 lg:sticky lg:top-16 lg:z-10 lg:shadow-none lg:translate-x-0
           ${isOpenMobile ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
       >
@@ -189,6 +193,10 @@ export default function SidebarNav({
               (d) => d.categoryId === category.id,
             ).length;
 
+            const isCatRestricted =
+              restrictedFolders.includes(category.id) ||
+              category.minRole === "admin";
+
             return (
               <div key={category.id} className="space-y-0.5 group/cat">
                 {/* Category Item (Smooth fixed height & layout - NO JITTER) */}
@@ -226,34 +234,62 @@ export default function SidebarNav({
                       className={`w-4 h-4 shrink-0 ${category.isDefault ? "text-[#d0aa61]" : "text-amber-600"}`}
                     />
 
-                    <span className="truncate">{category.name}</span>
+                    <span className="truncate flex-1 font-semibold">{category.name}</span>
 
-                    {category.isDefault && (
+                    {isCatRestricted && (
                       <span
-                        title="Danh mục mặc định bảo vệ"
-                        className="ml-1 text-[10px] text-zinc-400 shrink-0"
+                        title="Thư mục bảo mật nội bộ - Ẩn hoàn toàn với tài khoản Nhân viên"
+                        className="ml-1 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300 shrink-0"
                       >
-                        <Lock className="w-3 h-3 inline text-zinc-400" />
+                        🔒 Chỉ Admin
                       </span>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-1 shrink-0">
-                    {/* Badge số lượng tài liệu trong Category */}
+                  <div className="flex items-center gap-1 shrink-0 ml-1">
+                    {/* Badge số lượng tài liệu trong Category (Ẩn khi hover trên desktop để nhường chỗ cho buttons) */}
                     <span
                       className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold transition-colors ${
+                        userRole === "admin" ? "group-hover/cat:hidden" : ""
+                      } ${
                         isCatActive
                           ? "bg-[#d0aa61]/30 text-[#9f7a35]"
-                          : "bg-zinc-100 text-zinc-400 group-hover/cat:bg-zinc-200"
+                          : "bg-zinc-100 text-zinc-400"
                       }`}
                       title={`${categoryDocCount} tài liệu trong danh mục`}
                     >
                       {categoryDocCount}
                     </span>
 
-                    {/* Admin Action Buttons (Visible on iPad touch, smooth hover on desktop) */}
+                    {/* Admin Action Buttons: Chỉ hiện khi HOVER */}
                     {userRole === "admin" && (
-                      <div className="opacity-90 lg:opacity-0 lg:group-hover/cat:opacity-100 hover:!opacity-100 transition-opacity duration-150 flex items-center gap-0.5 ml-0.5">
+                      <div className="hidden group-hover/cat:flex items-center gap-0.5">
+                        {/* Nút Ẩn/Hiện nhanh đối với Nhân viên */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleFolderVisibility &&
+                              onToggleFolderVisibility(category.id, isCatRestricted);
+                          }}
+                          className={`p-1 rounded transition-colors cursor-pointer active:scale-95 ${
+                            isCatRestricted
+                              ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                              : "text-zinc-400 hover:text-zinc-800 hover:bg-zinc-200"
+                          }`}
+                          title={
+                            isCatRestricted
+                              ? "Danh mục đang ẨN với Nhân viên. Bấm để hiển thị công khai"
+                              : "Bấm để ẨN danh mục này với Nhân viên"
+                          }
+                        >
+                          {isCatRestricted ? (
+                            <EyeOff className="w-3.5 h-3.5 text-amber-700" />
+                          ) : (
+                            <Eye className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+
                         {/* Nút + Tạo folder con mới */}
                         <button
                           type="button"
@@ -262,28 +298,26 @@ export default function SidebarNav({
                             onQuickAddSubFolder(category);
                             if (onCloseMobile) onCloseMobile();
                           }}
-                          className="p-1.5 rounded-md hover:bg-[#d0aa61] text-[#9f7a35] hover:text-[#504b44] shrink-0 cursor-pointer active:scale-95"
+                          className="p-1 rounded hover:bg-[#d0aa61] text-[#9f7a35] hover:text-[#504b44] shrink-0 cursor-pointer active:scale-95"
                           title={`Tạo folder con mới cho danh mục ${category.name}`}
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </button>
 
-                        {/* Nút ✏️ Đổi tên Danh mục cha (cho danh mục tùy chỉnh như History) */}
-                        {!category.isDefault && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onEditCategory && onEditCategory(category);
-                            }}
-                            className="p-1.5 rounded-md hover:bg-zinc-200 text-zinc-500 hover:text-zinc-900 shrink-0 cursor-pointer active:scale-95"
-                            title={`Đổi tên danh mục ${category.name}`}
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
+                        {/* Nút ✏️ Đổi tên & Cài đặt Danh mục cha */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditCategory && onEditCategory(category);
+                          }}
+                          className="p-1 rounded hover:bg-zinc-200 text-zinc-500 hover:text-zinc-900 shrink-0 cursor-pointer active:scale-95"
+                          title={`Chỉnh sửa danh mục ${category.name}`}
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
 
-                        {/* Nút 🗑️ Xóa Danh mục cha (cho danh mục tùy chỉnh như History) */}
+                        {/* Nút 🗑️ Xóa Danh mục cha (chỉ dành cho danh mục tùy chỉnh) */}
                         {!category.isDefault && (
                           <button
                             type="button"
@@ -291,7 +325,7 @@ export default function SidebarNav({
                               e.stopPropagation();
                               onDeleteCategory && onDeleteCategory(category);
                             }}
-                            className="p-1.5 rounded-md hover:bg-red-100 text-zinc-400 hover:text-red-600 shrink-0 cursor-pointer active:scale-95"
+                            className="p-1 rounded hover:bg-red-100 text-zinc-400 hover:text-red-600 shrink-0 cursor-pointer active:scale-95"
                             title={`Xóa danh mục ${category.name}`}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -315,6 +349,10 @@ export default function SidebarNav({
                           d.subFolderId === subFolder.id,
                       ).length;
 
+                      const isSubRestricted =
+                        restrictedFolders.includes(subFolder.id) ||
+                        subFolder.minRole === "admin";
+
                       return (
                         <div
                           key={subFolder.id}
@@ -329,104 +367,147 @@ export default function SidebarNav({
                             onClick={() =>
                               handleSubFolderClick(category.id, subFolder.id)
                             }
-                            className="flex items-center gap-2 flex-1 min-w-0 text-left truncate cursor-pointer py-0.5"
+                            className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer py-0.5"
                           >
                             <FolderOpen
                               className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-[#504b44]" : "text-zinc-400"}`}
                             />
-                            <span className="truncate">{subFolder.name}</span>
+                            <span className="truncate flex-1">{subFolder.name}</span>
+                            {isSubRestricted && (
+                              <span
+                                title="Folder bảo mật - Ẩn với Nhân viên"
+                                className="text-[10px] text-amber-800 shrink-0 font-bold"
+                              >
+                                🔒
+                              </span>
+                            )}
                           </button>
 
-                          {/* Badge đếm số lượng tài liệu trong Sub-Folder */}
-                          <span
-                            className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 transition-colors ${
-                              isSubActive
-                                ? "bg-white/35 text-[#504b44]"
-                                : "bg-zinc-100 text-zinc-500 group-hover/sub:bg-zinc-200"
-                            }`}
-                            title={`${subFolderDocCount} tài liệu trong folder này`}
-                          >
-                            {subFolderDocCount}
-                          </span>
+                          <div className="flex items-center gap-1 shrink-0 ml-1">
+                            {/* Badge đếm số lượng tài liệu trong Sub-Folder (Ẩn khi hover để nhường chỗ cho buttons) */}
+                            <span
+                              className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0 transition-colors ${
+                                userRole === "admin" ? "group-hover/sub:hidden" : ""
+                              } ${
+                                isSubActive
+                                  ? "bg-white/35 text-[#504b44]"
+                                  : "bg-zinc-100 text-zinc-500"
+                              }`}
+                              title={`${subFolderDocCount} tài liệu trong folder này`}
+                            >
+                              {subFolderDocCount}
+                            </span>
 
-                          {/* Admin Action Buttons for SubFolder (Visible on iPad touch, hover on desktop) */}
-                          {userRole === "admin" && (
-                            <div className="opacity-90 lg:opacity-0 lg:group-hover/sub:opacity-100 hover:!opacity-100 transition-opacity duration-150 flex items-center gap-0.5 shrink-0 ml-1">
-                              {/* Nút + Upload File vào ngay SubFolder này */}
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onQuickUploadToSubFolder(
-                                    category.id,
-                                    subFolder.id,
-                                  );
-                                  if (onCloseMobile) onCloseMobile();
-                                }}
-                                className={`p-1.5 rounded-md transition-colors active:scale-95 ${
-                                  isSubActive
-                                    ? "text-[#504b44] hover:bg-white/40"
-                                    : "text-zinc-600 hover:text-[#504b44] hover:bg-zinc-200"
-                                }`}
-                                title={`Upload tài liệu trực tiếp vào folder ${subFolder.name}`}
-                              >
-                                <Plus className="w-3 h-3" />
-                              </button>
-
-                              {/* Nút Edit đổi tên */}
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onEditSubFolder(subFolder);
-                                }}
-                                className={`p-1.5 rounded-md transition-colors cursor-pointer active:scale-95 ${
-                                  isSubActive
-                                    ? "text-[#504b44] hover:bg-white/40"
-                                    : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200"
-                                }`}
-                                title="Đổi tên folder"
-                              >
-                                <Edit2 className="w-3 h-3" />
-                              </button>
-
-                              {/* Nút Di chuyển Folder sang Danh mục khác */}
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onMoveSubFolder && onMoveSubFolder(subFolder);
-                                }}
-                                className={`p-1.5 rounded-md transition-colors cursor-pointer active:scale-95 ${
-                                  isSubActive
-                                    ? "text-[#504b44] hover:bg-white/40"
-                                    : "text-zinc-500 hover:text-[#9f7a35] hover:bg-zinc-200"
-                                }`}
-                                title="Di chuyển folder sang danh mục cha khác"
-                              >
-                                <FolderOutput className="w-3 h-3" />
-                              </button>
-
-                              {/* Nút Delete xóa folder */}
-                              {!subFolder.isDefault && (
+                            {/* Admin Action Buttons for SubFolder: Chỉ hiện khi HOVER */}
+                            {userRole === "admin" && (
+                              <div className="hidden group-hover/sub:flex items-center gap-0.5 shrink-0">
+                                {/* Nút Ẩn/Hiện nhanh đối với Nhân viên */}
                                 <button
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    onDeleteSubFolder(subFolder);
+                                    onToggleFolderVisibility &&
+                                      onToggleFolderVisibility(
+                                        subFolder.id,
+                                        isSubRestricted
+                                      );
                                   }}
-                                  className={`p-1.5 rounded-md transition-colors active:scale-95 ${
-                                    isSubActive
-                                      ? "text-red-950 hover:bg-red-200"
-                                      : "text-zinc-400 hover:text-red-600 hover:bg-red-100"
+                                  className={`p-1 rounded transition-colors cursor-pointer active:scale-95 ${
+                                    isSubRestricted
+                                      ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                                      : isSubActive
+                                        ? "text-[#504b44] hover:bg-white/40"
+                                        : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200"
                                   }`}
-                                  title="Xóa folder (Chuyển tất cả tài liệu sang danh mục cha General)"
+                                  title={
+                                    isSubRestricted
+                                      ? "Folder đang ẨN với Nhân viên. Bấm để hiển thị công khai"
+                                      : "Bấm để ẨN folder này với Nhân viên"
+                                  }
                                 >
-                                  <Trash2 className="w-3 h-3" />
+                                  {isSubRestricted ? (
+                                    <EyeOff className="w-3 h-3 text-amber-800" />
+                                  ) : (
+                                    <Eye className="w-3 h-3" />
+                                  )}
                                 </button>
-                              )}
-                            </div>
-                          )}
+
+                                {/* Nút + Upload File vào ngay SubFolder này */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onQuickUploadToSubFolder(
+                                      category.id,
+                                      subFolder.id,
+                                    );
+                                    if (onCloseMobile) onCloseMobile();
+                                  }}
+                                  className={`p-1 rounded transition-colors active:scale-95 ${
+                                    isSubActive
+                                      ? "text-[#504b44] hover:bg-white/40"
+                                      : "text-zinc-600 hover:text-[#504b44] hover:bg-zinc-200"
+                                  }`}
+                                  title={`Upload tài liệu trực tiếp vào folder ${subFolder.name}`}
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+
+                                {/* Nút Edit đổi tên & quyền */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onEditSubFolder(subFolder);
+                                  }}
+                                  className={`p-1 rounded transition-colors cursor-pointer active:scale-95 ${
+                                    isSubActive
+                                      ? "text-[#504b44] hover:bg-white/40"
+                                      : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200"
+                                  }`}
+                                  title="Đổi tên & cài đặt folder"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+
+                                {/* Nút Di chuyển Folder sang Danh mục khác */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onMoveSubFolder && onMoveSubFolder(subFolder);
+                                  }}
+                                  className={`p-1 rounded transition-colors cursor-pointer active:scale-95 ${
+                                    isSubActive
+                                      ? "text-[#504b44] hover:bg-white/40"
+                                      : "text-zinc-500 hover:text-[#9f7a35] hover:bg-zinc-200"
+                                  }`}
+                                  title="Di chuyển folder sang danh mục cha khác"
+                                >
+                                  <FolderOutput className="w-3 h-3" />
+                                </button>
+
+                                {/* Nút Delete xóa folder */}
+                                {!subFolder.isDefault && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onDeleteSubFolder(subFolder);
+                                    }}
+                                    className={`p-1 rounded transition-colors active:scale-95 ${
+                                      isSubActive
+                                        ? "text-red-950 hover:bg-red-200"
+                                        : "text-zinc-400 hover:text-red-600 hover:bg-red-100"
+                                    }`}
+                                    title="Xóa folder"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       );
                     })}

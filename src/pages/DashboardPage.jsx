@@ -41,13 +41,64 @@ import {
   sanitizeFileUrl,
   isTouchDeviceOrIOS
 } from '../services/documentService';
+import {
+  loadRestrictedFolders,
+  saveRestrictedFolders
+} from '../services/aiGuardrailService';
 
 export default function DashboardPage({ user, onLogout }) {
   // Application Data State
   const [categories, setCategories] = useState([]);
   const [subFolders, setSubFolders] = useState([]);
   const [documents, setDocuments] = useState([]);
+  const [restrictedFolders, setRestrictedFolders] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
+
+  // =========================================================================
+  // PHÂN QUYỀN HỆ THỐNG: Nhân viên không nhìn thấy Thư mục & File "Chỉ Admin"
+  // =========================================================================
+  const isUserAdmin = user?.role === 'admin';
+
+  // 1. Danh sách Danh mục hiển thị theo quyền
+  const visibleCategories = React.useMemo(() => {
+    if (isUserAdmin) return categories;
+    return categories.filter(c => !restrictedFolders.includes(c.id) && c.minRole !== 'admin');
+  }, [categories, isUserAdmin, restrictedFolders]);
+
+  // 2. Danh sách SubFolder hiển thị theo quyền
+  const visibleSubFolders = React.useMemo(() => {
+    if (isUserAdmin) return subFolders;
+    const hiddenCatIds = new Set(
+      categories.filter(c => restrictedFolders.includes(c.id) || c.minRole === 'admin').map(c => c.id)
+    );
+    return subFolders.filter(sf => 
+      !hiddenCatIds.has(sf.categoryId) && 
+      !restrictedFolders.includes(sf.id) && 
+      sf.minRole !== 'admin'
+    );
+  }, [subFolders, categories, isUserAdmin, restrictedFolders]);
+
+  // 3. Danh sách Tài liệu hiển thị theo quyền
+  const visibleDocuments = React.useMemo(() => {
+    if (isUserAdmin) return documents;
+    const hiddenCatIds = new Set(
+      categories.filter(c => restrictedFolders.includes(c.id) || c.minRole === 'admin').map(c => c.id)
+    );
+    const hiddenSubIds = new Set(
+      subFolders.filter(sf => restrictedFolders.includes(sf.id) || sf.minRole === 'admin').map(sf => sf.id)
+    );
+    return documents.filter(d => {
+      if (d.categoryId && (hiddenCatIds.has(d.categoryId) || restrictedFolders.includes(d.categoryId))) return false;
+      if (d.subFolderId && (hiddenSubIds.has(d.subFolderId) || restrictedFolders.includes(d.subFolderId))) return false;
+      if (Array.isArray(d.tags)) {
+        const lowerTags = d.tags.map(t => String(t).toLowerCase());
+        if (lowerTags.includes('bảo mật') || lowerTags.includes('admin only') || lowerTags.includes('nhạy cảm')) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [documents, categories, subFolders, isUserAdmin, restrictedFolders]);
 
   // Navigation Filter State (Đồng bộ trực tiếp với Browser History & URL Query Params)
   const [activeCategory, setActiveCategory] = useState(() => {
@@ -109,14 +160,16 @@ export default function DashboardPage({ user, onLogout }) {
     async function fetchData(silent = false) {
       if (!silent) setLoadingData(true);
       try {
-        const [cats, subs, docs] = await Promise.all([
+        const [cats, subs, docs, folders] = await Promise.all([
           loadCategories(),
           loadSubFolders(),
           loadDocuments(),
+          loadRestrictedFolders(),
         ]);
         setCategories(cats);
         setSubFolders(subs);
         setDocuments(docs);
+        setRestrictedFolders(folders || []);
 
         // Kiểm tra Deep-link ?docId=... để tự động mở tài liệu được chia sẻ
         if (!silent && typeof window !== 'undefined') {
@@ -172,7 +225,21 @@ export default function DashboardPage({ user, onLogout }) {
   // =========================================================================
   // BROWSER HISTORY & NAVIGATION API (Cho phép vuốt Back trên mobile mà không văng app)
   // =========================================================================
-  const navigateTo = (catId, subId = null, replace = false) => {
+  const navigateTo = (rawCatId, rawSubId = null, replace = false) => {
+    let catId = rawCatId;
+    let subId = rawSubId;
+
+    // Chặn người dùng thường tự gõ URL để vào folder bảo mật
+    if (!isUserAdmin) {
+      if (restrictedFolders.includes(catId) || categories.find(c => c.id === catId)?.minRole === 'admin') {
+        catId = null;
+        subId = null;
+      }
+      if (restrictedFolders.includes(subId) || subFolders.find(s => s.id === subId)?.minRole === 'admin') {
+        subId = null;
+      }
+    }
+
     setActiveCategory(catId);
     setActiveSubFolder(subId);
 
@@ -318,24 +385,58 @@ export default function DashboardPage({ user, onLogout }) {
     };
   }, [selectedPdf, isAiModalOpen, isUploadModalOpen, isSidebarOpenMobile]);
 
+  // 1-Click Toggle Visibility for Category or Subfolder
+  const handleToggleFolderVisibility = async (folderId, isCurrentlyRestricted) => {
+    if (!isUserAdmin) return;
+    let nextRestricted;
+    if (isCurrentlyRestricted) {
+      nextRestricted = restrictedFolders.filter(id => id !== folderId);
+      setCategories(prev => prev.map(c => c.id === folderId ? { ...c, minRole: null } : c));
+      setSubFolders(prev => prev.map(s => s.id === folderId ? { ...s, minRole: null } : s));
+      showToast('Đã chuyển thư mục sang chế độ CÔNG KHAI (Nhân viên có thể xem).', 'success');
+    } else {
+      nextRestricted = [...restrictedFolders, folderId];
+      setCategories(prev => prev.map(c => c.id === folderId ? { ...c, minRole: 'admin' } : c));
+      setSubFolders(prev => prev.map(s => s.id === folderId ? { ...s, minRole: 'admin' } : s));
+      showToast('Đã ẨN thư mục đối với tài khoản Nhân viên (Chỉ Admin).', 'info');
+    }
+    setRestrictedFolders(nextRestricted);
+    await saveRestrictedFolders(nextRestricted);
+  };
+
   // Handlers for Category & Data Persistence
   const handleAddCategory = async (newCat) => {
     setCategories(prev => [...prev, newCat]);
+    if (newCat.isRestricted || newCat.minRole === 'admin') {
+      const next = [...restrictedFolders, newCat.id];
+      setRestrictedFolders(next);
+      await saveRestrictedFolders(next);
+    }
     await addCategoryToDb(newCat);
     showToast(`Đã thêm danh mục mới "${newCat.name}".`, 'success');
   };
 
-  const handleSaveCategory = async (catId, newName) => {
+  const handleSaveCategory = async (catId, newName, isAdminOnly = false) => {
     if (user?.role !== 'admin') {
-      showToast('Bạn không có quyền đổi tên danh mục!', 'error');
+      showToast('Bạn không có quyền chỉnh sửa danh mục!', 'error');
       return;
     }
     const id = typeof catId === 'object' ? catId.id : catId;
     const name = typeof catId === 'object' ? catId.name : newName;
 
-    setCategories(prev => prev.map(c => c.id === id ? { ...c, name: name } : c));
+    setCategories(prev => prev.map(c => c.id === id ? { ...c, name: name, minRole: isAdminOnly ? 'admin' : null } : c));
+
+    let nextRestricted = [...restrictedFolders];
+    if (isAdminOnly && !nextRestricted.includes(id)) {
+      nextRestricted.push(id);
+    } else if (!isAdminOnly && nextRestricted.includes(id)) {
+      nextRestricted = nextRestricted.filter(fId => fId !== id);
+    }
+    setRestrictedFolders(nextRestricted);
+    await saveRestrictedFolders(nextRestricted);
+
     await updateCategoryInDb(id, name);
-    showToast(`Đã đổi tên danh mục thành "${name}".`, 'success');
+    showToast(`Đã cập nhật danh mục "${name}".`, 'success');
   };
 
   const handleDeleteCategory = (cat) => {
@@ -384,6 +485,11 @@ export default function DashboardPage({ user, onLogout }) {
 
   const handleAddSubFolder = async (newSub) => {
     setSubFolders(prev => [...prev, newSub]);
+    if (newSub.isRestricted || newSub.minRole === 'admin') {
+      const next = [...restrictedFolders, newSub.id];
+      setRestrictedFolders(next);
+      await saveRestrictedFolders(next);
+    }
     await addSubFolderToDb(newSub);
     showToast(`Đã tạo folder "${newSub.name}" thành công!`, 'success');
   };
@@ -394,22 +500,37 @@ export default function DashboardPage({ user, onLogout }) {
 
   const handleConfirmQuickAdd = async (newSub) => {
     setSubFolders(prev => [...prev, newSub]);
+    if (newSub.isRestricted || newSub.minRole === 'admin') {
+      const next = [...restrictedFolders, newSub.id];
+      setRestrictedFolders(next);
+      await saveRestrictedFolders(next);
+    }
     await addSubFolderToDb(newSub);
     showToast(`Đã tạo folder "${newSub.name}" trong danh mục "${quickAddCategory?.name}"!`, 'success');
     setQuickAddCategory(null);
   };
 
-  const handleSaveSubFolder = async (subFolderId, newName) => {
+  const handleSaveSubFolder = async (subFolderId, newName, isAdminOnly = false) => {
     if (user?.role !== 'admin') {
-      showToast('Bạn không có quyền đổi tên folder!', 'error');
+      showToast('Bạn không có quyền chỉnh sửa folder!', 'error');
       return;
     }
     const id = typeof subFolderId === 'object' ? subFolderId.id : subFolderId;
     const name = typeof subFolderId === 'object' ? subFolderId.name : newName;
 
-    setSubFolders(prev => prev.map(s => s.id === id ? { ...s, name: name } : s));
+    setSubFolders(prev => prev.map(s => s.id === id ? { ...s, name: name, minRole: isAdminOnly ? 'admin' : null } : s));
+
+    let nextRestricted = [...restrictedFolders];
+    if (isAdminOnly && !nextRestricted.includes(id)) {
+      nextRestricted.push(id);
+    } else if (!isAdminOnly && nextRestricted.includes(id)) {
+      nextRestricted = nextRestricted.filter(fId => fId !== id);
+    }
+    setRestrictedFolders(nextRestricted);
+    await saveRestrictedFolders(nextRestricted);
+
     await updateSubFolderInDb(id, name);
-    showToast(`Đã đổi tên folder thành "${name}".`, 'success');
+    showToast(`Đã cập nhật folder "${name}".`, 'success');
   };
   const handleRenameSubFolder = handleSaveSubFolder;
 
@@ -655,9 +776,11 @@ export default function DashboardPage({ user, onLogout }) {
         
         {/* Left Sidebar Category Tree */}
         <SidebarNav
-          categories={categories}
-          subFolders={subFolders}
-          documents={documents}
+          categories={visibleCategories}
+          subFolders={visibleSubFolders}
+          documents={visibleDocuments}
+          restrictedFolders={restrictedFolders}
+          onToggleFolderVisibility={handleToggleFolderVisibility}
           activeCategory={activeCategory}
           activeSubFolder={activeSubFolder}
           onSelectCategory={handleSelectCategory}
@@ -685,9 +808,11 @@ export default function DashboardPage({ user, onLogout }) {
             </div>
           ) : (
             <DocumentGrid
-              documents={documents}
-              categories={categories}
-              subFolders={subFolders}
+              documents={visibleDocuments}
+              categories={visibleCategories}
+              subFolders={visibleSubFolders}
+              restrictedFolders={restrictedFolders}
+              onToggleFolderVisibility={handleToggleFolderVisibility}
               activeCategory={activeCategory}
               activeSubFolder={activeSubFolder}
               onSelectCategory={handleSelectCategory}
@@ -718,9 +843,9 @@ export default function DashboardPage({ user, onLogout }) {
       {/* AI Assistant Modal (Near Full-screen with large typography) */}
       <ChatWidget
         user={user}
-        documents={documents}
-        categories={categories}
-        subFolders={subFolders}
+        documents={visibleDocuments}
+        categories={visibleCategories}
+        subFolders={visibleSubFolders}
         onViewPdf={handleViewDocument}
         isOpen={isAiModalOpen}
         onOpenChange={handleOpenAiModal}
@@ -758,6 +883,8 @@ export default function DashboardPage({ user, onLogout }) {
           <CategoryManagerModal
             categories={categories}
             subFolders={subFolders}
+            restrictedFolders={restrictedFolders}
+            onToggleFolderVisibility={handleToggleFolderVisibility}
             onAddCategory={handleAddCategory}
             onDeleteCategory={handleDeleteCategory}
             onAddSubFolder={handleAddSubFolder}
@@ -774,6 +901,7 @@ export default function DashboardPage({ user, onLogout }) {
         {editingCategory && (
           <EditCategoryModal
             category={editingCategory}
+            isRestricted={restrictedFolders.includes(editingCategory.id) || editingCategory.minRole === 'admin'}
             onSave={handleSaveCategory}
             onClose={() => setEditingCategory(null)}
           />
@@ -811,6 +939,7 @@ export default function DashboardPage({ user, onLogout }) {
         {editingSubFolder && (
           <EditSubFolderModal
             subFolder={editingSubFolder}
+            isRestricted={restrictedFolders.includes(editingSubFolder.id) || editingSubFolder.minRole === 'admin'}
             onSave={handleSaveSubFolder}
             onClose={() => setEditingSubFolder(null)}
           />
@@ -886,9 +1015,14 @@ export default function DashboardPage({ user, onLogout }) {
         {isAiSettingsOpen && (
           <AiSettingsModal
             isOpen={isAiSettingsOpen}
-            onClose={() => setIsAiSettingsOpen(false)}
+            onClose={() => {
+              setIsAiSettingsOpen(false);
+              loadRestrictedFolders().then(f => setRestrictedFolders(f || []));
+            }}
             currentUser={user}
             showToast={showToast}
+            categories={categories}
+            subFolders={subFolders}
           />
         )}
 

@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Báo Cáo Dự Án: Hệ Thống Tri Thức Số & Trợ Lý AI NS Group</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @media print {
+      body { background: white !important; color: black !important; padding: 0 !important; }
+      .no-print { display: none !important; }
+      .slide-card { display: block !important; page-break-after: always; height: auto !important; min-height: 100vh; box-shadow: none !important; border: 1px solid #ddd !important; margin-bottom: 20px; }
+      .slide-container { height: auto !important; overflow: visible !important; }
+    }
+    .slide-enter { animation: fadeIn 0.35s ease-out forwards; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px) scale(0.99); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+  </style>
+</head>
+<body class="bg-[#0f1115] text-zinc-100 antialiased min-h-screen flex flex-col justify-between selection:bg-[#d0aa61] selection:text-black">
+
+  <!-- TOP BAR / CONTROLS (NO PRINT) -->
+  <header class="no-print bg-[#161920]/90 backdrop-blur-md border-b border-zinc-800/80 px-4 py-3 sm:px-6 flex items-center justify-between sticky top-0 z-50">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#d0aa61] to-[#9f7a35] flex items-center justify-center text-black font-black text-sm shadow-md shadow-[#d0aa61]/20">
+        NSG
+      </div>
+      <div>
+        <h1 class="text-xs sm:text-sm font-bold text-zinc-100 tracking-wide">NSG KNOWLEDGE BASE & AI ASSISTANT</h1>
+        <p class="text-[10px] text-zinc-400">Báo cáo dự án & Lộ trình chuyển đổi số</p>
+      </div>
+    </div>
+
+    <!-- Slide Indicators & Action Buttons -->
+    <div class="flex items-center gap-2 sm:gap-4">
+      <div class="text-xs font-medium text-zinc-400 bg-zinc-800/60 px-3 py-1.5 rounded-full border border-zinc-700/50">
+        Slide <span id="currentSlideNum" class="text-[#d0aa61] font-bold">1</span> / <span id="totalSlidesNum">6</span>
+      </div>
+
+      <button onclick="toggleFullScreen()" class="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-medium transition-colors border border-zinc-700 flex items-center gap-1.5" title="Toàn màn hình (F)">
+        <span>⛶</span> <span class="hidden sm:inline">Toàn màn hình</span>
+      </button>
+
+      <button onclick="window.print()" class="px-3 py-1.5 bg-[#d0aa61] hover:bg-[#b89047] text-black rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5" title="In hoặc lưu thành file PDF">
+        <span>🖨️</span> <span>Xuất PDF</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN PRESENTATION CANVAS -->
+  <main class="flex-1 flex items-center justify-center p-3 sm:p-6 md:p-8 slide-container">
+    <div class="w-full max-w-5xl">
+
+      <!-- ==================== SLIDE 1 ==================== -->
+      <div class="slide-card slide-enter bg-[#161a22] border border-zinc-800/80 rounded-2xl p-6 sm:p-10 shadow-2xl relative overflow-hidden" data-slide="1">
+        <div class="absolute -top-24 -right-24 w-80 h-80 bg-[#d0aa61]/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#d0aa61]/10 border border-[#d0aa61]/30 text-[#d0aa61] text-xs font-bold tracking-wide uppercase mb-6">
+          ✨ Giới Thiệu Dự Án
+        </div>
+        <h2 class="text-2xl sm:text-4xl font-extrabold text-white leading-tight mb-4">
+          HỆ THỐNG QUẢN TRỊ TRI THỨC SỐ & TRỢ LÝ AI NỘI BỘ NS GROUP
+        </h2>
+        <p class="text-zinc-400 text-sm sm:text-base leading-relaxed mb-8 max-w-3xl">
+          Nền tảng số hóa toàn diện biến kho hồ sơ năng lực và di sản 70 năm (1955 – Nay) của Tập đoàn Ngọc Sương thành một <strong class="text-[#d0aa61]">"Trợ lý số biết nói"</strong> phục vụ điều hành, bảo mật dữ liệu và đào tạo nhân sự.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-zinc-800">
+          <div class="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800/60">
+            <div class="text-[#d0aa61] font-bold text-xs uppercase tracking-wider mb-1">👔 Dành Cho Ban Lãnh Đạo (Admin)</div>
+            <p class="text-zinc-300 text-xs sm:text-sm">Quản trị toàn bộ dự án, tra cứu pháp lý - chiến lược, chủ động phân quyền & ẩn/hiện folder nhạy cảm chỉ với 1 click.</p>
+          </div>
+          <div class="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800/60">
+            <div class="text-emerald-400 font-bold text-xs uppercase tracking-wider mb-1">👥 Dành Cho Khối Vận Hành (Staff)</div>
+            <p class="text-zinc-300 text-xs sm:text-sm">Tra cứu tức thì lịch sử thương hiệu, thực đơn di sản, quy trình nhà hàng để chăm sóc đối tác & khách hàng chuẩn xác.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== SLIDE 2 ==================== -->
+      <div class="slide-card hidden bg-[#161a22] border border-zinc-800/80 rounded-2xl p-6 sm:p-10 shadow-2xl relative overflow-hidden" data-slide="2">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold tracking-wide uppercase mb-4">
+          🚨 Bối Cảnh & Bài Toán Thực Tế
+        </div>
+        <h2 class="text-xl sm:text-3xl font-extrabold text-white mb-6">4 Thách Thức Lớn Được Giải Quyết Triệt Để</h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="p-4.5 rounded-xl bg-zinc-900/70 border border-zinc-800 flex gap-3.5 items-start">
+            <div class="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center font-bold shrink-0">1</div>
+            <div>
+              <h3 class="font-bold text-zinc-100 text-sm mb-1">Dữ liệu phân tán & Thất lạc</h3>
+              <p class="text-zinc-400 text-xs leading-relaxed">Hồ sơ 70 năm và tài liệu dự án nằm rải rác ở máy tính cá nhân, Zalo, Drive rời rạc gây khó khăn trong việc quản lý tập trung.</p>
+            </div>
+          </div>
+
+          <div class="p-4.5 rounded-xl bg-zinc-900/70 border border-zinc-800 flex gap-3.5 items-start">
+            <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold shrink-0">2</div>
+            <div>
+              <h3 class="font-bold text-zinc-100 text-sm mb-1">Tra cứu thủ công tốn thời gian</h3>
+              <p class="text-zinc-400 text-xs leading-relaxed">Nhân viên phải tải từng file Word/PDF hàng chục trang về máy để đọc tìm kiếm, làm giảm năng suất xử lý công việc.</p>
+            </div>
+          </div>
+
+          <div class="p-4.5 rounded-xl bg-zinc-900/70 border border-zinc-800 flex gap-3.5 items-start">
+            <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold shrink-0">3</div>
+            <div>
+              <h3 class="font-bold text-zinc-100 text-sm mb-1">Đứt gãy chuyển giao tri thức</h3>
+              <p class="text-zinc-400 text-xs leading-relaxed">Nhân sự mới khó nắm bắt triết lý cội nguồn, câu chuyện thương hiệu và các món ăn di sản biểu tượng của Ngọc Sương.</p>
+            </div>
+          </div>
+
+          <div class="p-4.5 rounded-xl bg-zinc-900/70 border border-zinc-800 flex gap-3.5 items-start">
+            <div class="w-8 h-8 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center font-bold shrink-0">4</div>
+            <div>
+              <h3 class="font-bold text-zinc-100 text-sm mb-1">Nguy cơ rò rỉ dữ liệu mật qua AI</h3>
+              <p class="text-zinc-400 text-xs leading-relaxed">Cần cơ chế bảo mật chặt chẽ để nhân viên không thể hỏi dò AI về các hồ sơ nhạy cảm (trích đo đất đai, tài chính, lương thưởng).</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== SLIDE 3 ==================== -->
+      <div class="slide-card hidden bg-[#161a22] border border-zinc-800/80 rounded-2xl p-6 sm:p-10 shadow-2xl relative overflow-hidden" data-slide="3">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold tracking-wide uppercase mb-4">
+          💡 Giải Pháp Đột Phá
+        </div>
+        <h2 class="text-xl sm:text-3xl font-extrabold text-white mb-6">Ưu Điểm Vượt Trội Của Hệ Thống NSG</h2>
+
+        <div class="space-y-3.5">
+          <div class="p-3.5 sm:p-4 rounded-xl bg-zinc-900/80 border border-[#d0aa61]/30 flex items-start gap-3">
+            <span class="text-[#d0aa61] text-base">✦</span>
+            <div>
+              <strong class="text-zinc-100 text-xs sm:text-sm font-bold">Trí tuệ nhân tạo RAG am hiểu di sản 70 năm:</strong>
+              <p class="text-zinc-400 text-xs mt-0.5">Tự động đọc hiểu toàn văn các tài liệu Word/PDF, trích xuất chính xác câu trả lời và tự động đính kèm thẻ tài liệu nguồn gốc.</p>
+            </div>
+          </div>
+
+          <div class="p-3.5 sm:p-4 rounded-xl bg-zinc-900/80 border border-emerald-500/30 flex items-start gap-3">
+            <span class="text-emerald-400 text-base">🛡️</span>
+            <div>
+              <strong class="text-zinc-100 text-xs sm:text-sm font-bold">Bảo mật phân quyền 2 lớp (UI + AI Guardrails):</strong>
+              <p class="text-zinc-400 text-xs mt-0.5">Admin ẩn folder trên Dashboard thì AI tự động chặn nhân viên hỏi dò các tài liệu trong folder đó (như trích đo Bãi Lao - Bãi Cồn, số liệu tài chính).</p>
+            </div>
+          </div>
+
+          <div class="p-3.5 sm:p-4 rounded-xl bg-zinc-900/80 border border-blue-500/30 flex items-start gap-3">
+            <span class="text-blue-400 text-base">📄</span>
+            <div>
+              <strong class="text-zinc-100 text-xs sm:text-sm font-bold">Trình đọc PDF nội bộ tối ưu băng thông:</strong>
+              <p class="text-zinc-400 text-xs mt-0.5">Xem file trực tiếp trên web không cần tải về máy; hỗ trợ xoay trang, zoom, tìm kiếm văn bản và tải bản nén siêu nhẹ.</p>
+            </div>
+          </div>
+
+          <div class="p-3.5 sm:p-4 rounded-xl bg-zinc-900/80 border border-purple-500/30 flex items-start gap-3">
+            <span class="text-purple-400 text-base">⚡</span>
+            <div>
+              <strong class="text-zinc-100 text-xs sm:text-sm font-bold">Bộ phản hồi tri thức dự phòng (Fallback Engine):</strong>
+              <p class="text-zinc-400 text-xs mt-0.5">Hoạt động thông minh ngay cả khi mạng lag hoặc tài khoản AI chạm ngưỡng hạn mức, đảm bảo thông tin nội bộ không bị gián đoạn.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== SLIDE 4 ==================== -->
+      <div class="slide-card hidden bg-[#161a22] border border-zinc-800/80 rounded-2xl p-6 sm:p-10 shadow-2xl relative overflow-hidden" data-slide="4">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold tracking-wide uppercase mb-4">
+          ⚠️ Đánh Giá Trung Thực
+        </div>
+        <h2 class="text-xl sm:text-3xl font-extrabold text-white mb-6">Nhược Điểm & Thách Thức Cần Hoàn Thiện</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="p-5 rounded-xl bg-zinc-900/60 border border-zinc-800">
+            <div class="text-2xl mb-2">⏳</div>
+            <h3 class="font-bold text-zinc-100 text-sm mb-1.5">Giới hạn Hạn mức API</h3>
+            <p class="text-zinc-400 text-xs leading-relaxed">Đang sử dụng API đám mây (Google Gemini) nên cần có chính sách giới hạn số lượt hỏi/ngày hoặc nâng cấp gói trả phí khi quy mô nhân sự mở rộng lớn.</p>
+          </div>
+
+          <div class="p-5 rounded-xl bg-zinc-900/60 border border-zinc-800">
+            <div class="text-2xl mb-2">📐</div>
+            <h3 class="font-bold text-zinc-100 text-sm mb-1.5">Tài liệu Scan cũ & Bản vẽ</h3>
+            <p class="text-zinc-400 text-xs leading-relaxed">Các file PDF dạng ảnh chụp cũ hoặc bản vẽ trích đo tay nếu mờ sẽ cần thêm công nghệ OCR thị giác chuyên sâu để đọc chi tiết từng tọa độ, số thửa.</p>
+          </div>
+
+          <div class="p-5 rounded-xl bg-zinc-900/60 border border-zinc-800">
+            <div class="text-2xl mb-2">🔄</div>
+            <h3 class="font-bold text-zinc-100 text-sm mb-1.5">Kỷ luật cập nhật hồ sơ</h3>
+            <p class="text-zinc-400 text-xs leading-relaxed">Trí tuệ nhân tạo chỉ phản hồi chính xác khi dữ liệu dự án mới được tải lên đầy đủ. Cần quy định các phòng ban chủ động tải file lên kho.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== SLIDE 5 ==================== -->
+      <div class="slide-card hidden bg-[#161a22] border border-zinc-800/80 rounded-2xl p-6 sm:p-10 shadow-2xl relative overflow-hidden" data-slide="5">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-bold tracking-wide uppercase mb-4">
+          ⚖️ So Sánh Khác Biệt
+        </div>
+        <h2 class="text-xl sm:text-3xl font-extrabold text-white mb-6">NSG System vs. Google Drive / OneDrive</h2>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs sm:text-sm border-collapse">
+            <thead>
+              <tr class="border-b border-zinc-800 text-zinc-400">
+                <th class="py-3 px-3 font-semibold">Tiêu chí so sánh</th>
+                <th class="py-3 px-3 font-semibold text-zinc-400">Google Drive / OneDrive</th>
+                <th class="py-3 px-3 font-bold text-[#d0aa61] bg-[#d0aa61]/5 rounded-t-lg">Hệ Thống NSG Tri Thức Số</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-zinc-800/60">
+              <tr>
+                <td class="py-3 px-3 font-medium text-zinc-300">Bản chất hệ thống</td>
+                <td class="py-3 px-3 text-zinc-400">Kho chứa file tĩnh (File Storage)</td>
+                <td class="py-3 px-3 font-semibold text-white bg-[#d0aa61]/5">Trợ lý AI tương tác hai chiều</td>
+              </tr>
+              <tr>
+                <td class="py-3 px-3 font-medium text-zinc-300">Cách tra cứu thông tin</td>
+                <td class="py-3 px-3 text-zinc-400">Tìm tên file $\rightarrow$ Tải về $\rightarrow$ Tự đọc hàng chục trang</td>
+                <td class="py-3 px-3 font-semibold text-emerald-400 bg-[#d0aa61]/5">Hỏi tiếng Việt $\rightarrow$ Nhận tóm tắt cốt lõi trong 2s</td>
+              </tr>
+              <tr>
+                <td class="py-3 px-3 font-medium text-zinc-300">Hiểu văn hóa & Di sản</td>
+                <td class="py-3 px-3 text-zinc-400">Hoàn toàn không hiểu</td>
+                <td class="py-3 px-3 font-semibold text-white bg-[#d0aa61]/5">Am hiểu sâu 70 năm lịch sử & ẩm thực NSG</td>
+              </tr>
+              <tr>
+                <td class="py-3 px-3 font-medium text-zinc-300">Bảo mật khi hỏi AI</td>
+                <td class="py-3 px-3 text-zinc-400">Không có lớp bảo vệ AI theo vai trò</td>
+                <td class="py-3 px-3 font-semibold text-[#d0aa61] bg-[#d0aa61]/5">Chặn hỏi dò tài liệu ẩn & tài chính đối với Staff</td>
+              </tr>
+              <tr>
+                <td class="py-3 px-3 font-medium text-zinc-300">Nhận diện thương hiệu</td>
+                <td class="py-3 px-3 text-zinc-400">Giao diện phổ thông của Big Tech</td>
+                <td class="py-3 px-3 font-semibold text-white bg-[#d0aa61]/5">May đo riêng theo nhận diện Ngọc Sương</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ==================== SLIDE 6 ==================== -->
+      <div class="slide-card hidden bg-[#161a22] border border-zinc-800/80 rounded-2xl p-6 sm:p-10 shadow-2xl relative overflow-hidden" data-slide="6">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-400 text-xs font-bold tracking-wide uppercase mb-4">
+          🚀 Tầm Nhìn & Lộ Trình
+        </div>
+        <h2 class="text-xl sm:text-3xl font-extrabold text-white mb-6">4 Hướng Phát Triển Tiếp Theo</h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="p-4.5 rounded-xl bg-zinc-900/70 border border-zinc-800">
+            <div class="text-[#d0aa61] font-bold text-xs uppercase mb-1">01. Tích Hợp AI OCR Chuyên Sâu</div>
+            <p class="text-zinc-300 text-xs leading-relaxed">Bóc tách tự động dữ liệu trên các bản đồ trích đo đất Bãi Lao - Bãi Cồn, hồ sơ pháp lý Cam Ranh và hợp đồng scan.</p>
+          </div>
+
+          <div class="p-4.5 rounded-xl bg-zinc-900/70 border border-zinc-800">
+            <div class="text-cyan-400 font-bold text-xs uppercase mb-1">02. Đóng Dấu Số (Dynamic Watermark)</div>
+            <p class="text-zinc-300 text-xs leading-relaxed">Tự động in mờ tên & email nhân viên lên trang tài liệu khi mở xem để chống chụp ảnh màn hình và rò rỉ thông tin.</p>
+          </div>
+
+          <div class="p-4.5 rounded-xl bg-zinc-900/70 border border-emerald-400 font-bold text-xs uppercase mb-1">03. Trợ Lý Giọng Nói (AI Voice Assistant)</div>
+          <div class="p-4.5 rounded-xl bg-zinc-900/70 border border-zinc-800">
+            <p class="text-zinc-300 text-xs leading-relaxed">Cho phép Ban Giám đốc và quản lý nhà hàng bấm mic hỏi trực tiếp trên điện thoại và nghe AI trả lời tức thì.</p>
+          </div>
+
+          <div class="p-4.5 rounded-xl bg-zinc-900/70 border border-purple-400 font-bold text-xs uppercase mb-1">04. Giáo Trình Học Viện NS Academy</div>
+          <div class="p-4.5 rounded-xl bg-zinc-900/70 border border-zinc-800">
+            <p class="text-zinc-300 text-xs leading-relaxed">Biến trợ lý AI thành công cụ đào tạo nhập môn tiêu chuẩn (Onboarding) cho toàn bộ nhân sự mới gia nhập Tập đoàn NS Group.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- BOTTOM NAVIGATION CONTROLS (NO PRINT) -->
+  <footer class="no-print bg-[#161920]/90 backdrop-blur-md border-t border-zinc-800/80 px-4 py-3 sm:px-6 flex items-center justify-between sticky bottom-0 z-50">
+    <button id="prevBtn" onclick="prevSlide()" class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl text-xs font-bold transition-all border border-zinc-700 flex items-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+      <span>←</span> <span class="hidden sm:inline">Slide trước</span>
+    </button>
+
+    <!-- Dots Indicator -->
+    <div class="flex items-center gap-1.5 sm:gap-2" id="dotsContainer"></div>
+
+    <button id="nextBtn" onclick="nextSlide()" class="px-4 py-2 bg-[#d0aa61] hover:bg-[#b89047] text-black rounded-xl text-xs font-bold transition-all shadow-md shadow-[#d0aa61]/20 flex items-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+      <span class="hidden sm:inline">Slide tiếp</span> <span>→</span>
+    </button>
+  </footer>
+
+  <script>
+    let currentSlide = 1;
+    const totalSlides = 6;
+
+    function renderSlide(slideIdx) {
+      document.querySelectorAll('.slide-card').forEach((el) => {
+        el.classList.add('hidden');
+        el.classList.remove('slide-enter');
+      });
+
+      const activeEl = document.querySelector(`.slide-card[data-slide="${slideIdx}"]`);
+      if (activeEl) {
+        activeEl.classList.remove('hidden');
+        activeEl.classList.add('slide-enter');
+      }
+
+      document.getElementById('currentSlideNum').innerText = slideIdx;
+      document.getElementById('prevBtn').disabled = (slideIdx === 1);
+      document.getElementById('nextBtn').disabled = (slideIdx === totalSlides);
+
+      // Render dots
+      const dotsContainer = document.getElementById('dotsContainer');
+      dotsContainer.innerHTML = '';
+      for (let i = 1; i <= totalSlides; i++) {
+        const dot = document.createElement('button');
+        dot.className = `w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all ${i === slideIdx ? 'w-6 bg-[#d0aa61]' : 'bg-zinc-700 hover:bg-zinc-500'}`;
+        dot.onclick = () => goToSlide(i);
+        dotsContainer.appendChild(dot);
+      }
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides) {
+        currentSlide++;
+        renderSlide(currentSlide);
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 1) {
+        currentSlide--;
+        renderSlide(currentSlide);
+      }
+    }
+
+    function goToSlide(idx) {
+      currentSlide = idx;
+      renderSlide(currentSlide);
+    }
+
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    // Keyboard Navigation
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        prevSlide();
+      } else if (e.key === 'f' || e.key === 'F') {
+        toggleFullScreen();
+      }
+    });
+
+    renderSlide(currentSlide);
+  </script>
+</body>
+</html>

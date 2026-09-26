@@ -15,7 +15,9 @@ import {
   Layers,
   ArrowRight,
   FileText,
-  Edit2
+  Edit2,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { sortCategoriesWithGeneralFirst, sortSubFoldersWithGeneralFirst } from '../services/documentService';
 
@@ -23,6 +25,8 @@ export default function DocumentGrid({
   documents,
   categories,
   subFolders,
+  restrictedFolders = [],
+  onToggleFolderVisibility,
   activeCategory,
   activeSubFolder,
   onSelectCategory,
@@ -158,6 +162,7 @@ export default function DocumentGrid({
           {sortCategoriesWithGeneralFirst(categories).map((cat) => {
             const catSubFolders = subFolders.filter((sf) => sf.categoryId === cat.id);
             const catDocCount = documents.filter((d) => d.categoryId === cat.id).length;
+            const isCatRestricted = restrictedFolders.includes(cat.id) || cat.minRole === 'admin';
 
             return (
               <div
@@ -169,9 +174,36 @@ export default function DocumentGrid({
                   <div className="w-12 h-12 rounded-2xl bg-[#faf6ed] group-hover:bg-[#d0aa61] text-[#d0aa61] group-hover:text-[#504b44] flex items-center justify-center transition-all shadow-xs shrink-0">
                     <Folder className="w-6 h-6" />
                   </div>
-                  <span className="text-xs font-bold px-3 py-1 rounded-full bg-zinc-100 group-hover:bg-[#d0aa61]/25 text-zinc-600 group-hover:text-[#9f7a35] transition-colors shrink-0">
-                    {catDocCount} tài liệu
-                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {userRole === 'admin' && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleFolderVisibility && onToggleFolderVisibility(cat.id, isCatRestricted);
+                        }}
+                        className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                          isCatRestricted
+                            ? "bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200"
+                            : "bg-zinc-100 text-zinc-400 border-zinc-200 hover:text-zinc-800 hover:bg-zinc-200"
+                        }`}
+                        title={
+                          isCatRestricted
+                            ? "Danh mục đang ẨN với Nhân viên. Bấm để hiển thị công khai"
+                            : "Bấm để ẨN danh mục này với Nhân viên"
+                        }
+                      >
+                        {isCatRestricted ? (
+                          <EyeOff className="w-3.5 h-3.5" />
+                        ) : (
+                          <Eye className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    )}
+                    <span className="text-xs font-bold px-3 py-1 rounded-full bg-zinc-100 group-hover:bg-[#d0aa61]/25 text-zinc-600 group-hover:text-[#9f7a35] transition-colors shrink-0">
+                      {catDocCount} tài liệu
+                    </span>
+                  </div>
                 </div>
 
                 <div className="pt-3">
@@ -180,6 +212,11 @@ export default function DocumentGrid({
                       {cat.name}
                       {cat.isDefault && (
                         <Lock className="w-4 h-4 text-zinc-400 shrink-0" title="Danh mục mặc định" />
+                      )}
+                      {isCatRestricted && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 shrink-0">
+                          🔒 Chỉ Admin
+                        </span>
                       )}
                     </h3>
                     <ArrowRight className="w-4 h-4 text-zinc-300 group-hover:text-[#d0aa61] group-hover:translate-x-1 transition-all" />
@@ -297,6 +334,7 @@ export default function DocumentGrid({
             ).length;
 
             const isProtected = Boolean(sf.isDefault || sf.isProtected);
+            const isSfRestricted = restrictedFolders.includes(sf.id) || sf.minRole === 'admin';
 
             return (
               <div
@@ -318,6 +356,31 @@ export default function DocumentGrid({
                     {/* Admin Actions Group on Card */}
                     {userRole === 'admin' && (
                       <div className="flex items-center gap-0.5 bg-white/95 p-0.5 rounded-xl border border-zinc-200 shadow-xs">
+                        {/* Nút Ẩn/Hiện nhanh đối với Nhân viên */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleFolderVisibility && onToggleFolderVisibility(sf.id, isSfRestricted);
+                          }}
+                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                            isSfRestricted
+                              ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                              : "text-zinc-500 hover:text-zinc-900 hover:bg-[#faf6ed]"
+                          }`}
+                          title={
+                            isSfRestricted
+                              ? "Folder đang ẨN với Nhân viên. Bấm để hiển thị công khai"
+                              : "Bấm để ẨN folder này với Nhân viên"
+                          }
+                        >
+                          {isSfRestricted ? (
+                            <EyeOff className="w-3.5 h-3.5 text-amber-800" />
+                          ) : (
+                            <Eye className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+
                         {/* Nút ✏️ Sửa / Đổi tên folder */}
                         <button
                           type="button"
@@ -326,7 +389,7 @@ export default function DocumentGrid({
                             onEditSubFolder && onEditSubFolder(sf);
                           }}
                           className="p-1.5 rounded-lg text-zinc-500 hover:text-[#9f7a35] hover:bg-[#faf6ed] transition-colors cursor-pointer"
-                          title={`Đổi tên folder ${sf.name}`}
+                          title={`Đổi tên & cài đặt folder ${sf.name}`}
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
@@ -377,6 +440,11 @@ export default function DocumentGrid({
                       {sf.name}
                       {isProtected && (
                         <Lock className="w-3.5 h-3.5 text-zinc-400 shrink-0" title="Folder mặc định bảo vệ" />
+                      )}
+                      {isSfRestricted && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 shrink-0">
+                          🔒 Chỉ Admin
+                        </span>
                       )}
                     </h3>
                     <ArrowRight className="w-4 h-4 text-zinc-300 group-hover:text-[#d0aa61] group-hover:translate-x-1 transition-all shrink-0 ml-1" />

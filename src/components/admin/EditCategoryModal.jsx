@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
-import { X, Edit2, Check, Folder } from 'lucide-react';
+import { X, Check, Folder, ShieldAlert, Lock } from 'lucide-react';
 
-export default function EditCategoryModal({ category, onSave, onClose }) {
+export default function EditCategoryModal({ category, isRestricted = false, onSave, onClose }) {
   const [name, setName] = useState(category?.name || '');
+  const [isAdminOnly, setIsAdminOnly] = useState(
+    Boolean(isRestricted || category?.minRole === 'admin')
+  );
 
   if (!category) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onSave(category.id, name.trim());
+    onSave(category.id, name.trim(), isAdminOnly);
     onClose();
   };
 
@@ -21,7 +24,7 @@ export default function EditCategoryModal({ category, onSave, onClose }) {
         <div className="px-4 py-3 bg-[#504b44] text-white flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Folder className="w-4 h-4 text-[#d0aa61]" />
-            <h3 className="font-semibold text-xs text-white">Đổi tên Danh mục Cha</h3>
+            <h3 className="font-semibold text-xs text-white">Chỉnh sửa Danh mục Cha</h3>
           </div>
           <button
             onClick={onClose}
@@ -34,15 +37,46 @@ export default function EditCategoryModal({ category, onSave, onClose }) {
         {/* Body */}
         <form onSubmit={handleSubmit} className="p-4 space-y-4 text-xs">
           <div>
-            <label className="block font-semibold text-zinc-700 mb-1">Tên Danh mục Mới (*):</label>
+            <label className="block font-semibold text-zinc-700 mb-1">
+              Tên Danh mục (*):
+            </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:border-[#d0aa61] text-zinc-900"
-              autoFocus
+              disabled={category.isDefault}
+              className={`w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:border-[#d0aa61] text-zinc-900 ${
+                category.isDefault ? "opacity-75 cursor-not-allowed bg-zinc-100" : ""
+              }`}
+              autoFocus={!category.isDefault}
               required
             />
+            {category.isDefault && (
+              <span className="text-[10px] text-zinc-400 mt-1 flex items-center gap-1">
+                <Lock className="w-3 h-3 text-zinc-400 inline" /> Danh mục mặc định hệ thống (không đổi tên)
+              </span>
+            )}
+          </div>
+
+          {/* Phân quyền bảo mật: Ẩn/Hiện với Nhân viên */}
+          <div className="pt-2 border-t border-zinc-100">
+            <label className="flex items-start gap-2.5 cursor-pointer p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/90 hover:bg-amber-100/50 transition-colors">
+              <input
+                type="checkbox"
+                checked={isAdminOnly}
+                onChange={(e) => setIsAdminOnly(e.target.checked)}
+                className="mt-0.5 rounded text-[#d0aa61] focus:ring-[#d0aa61] cursor-pointer"
+              />
+              <div>
+                <span className="font-semibold text-zinc-900 flex items-center gap-1.5 text-xs">
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                  Ẩn danh mục này đối với Nhân viên (Chỉ Admin)
+                </span>
+                <p className="text-[11px] text-zinc-500 mt-0.5 leading-snug">
+                  Khi bật, nhân viên sẽ không nhìn thấy danh mục này trên Sidebar/Dashboard và AI sẽ tự động loại bỏ tài liệu bên trong khỏi câu trả lời.
+                </p>
+              </div>
+            </label>
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100">

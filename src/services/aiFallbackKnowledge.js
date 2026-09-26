@@ -7,6 +7,60 @@
 export function getLocalKnowledgeAnswer(query) {
   const q = (query || "").toLowerCase();
 
+  // 0. Hồ sơ năng lực / Giới thiệu tổng quan tập đoàn NS Group (Company Profile)
+  if (
+    q.includes("hồ sơ năng lực") ||
+    q.includes("năng lực") ||
+    q.includes("profile") ||
+    (q.includes("giới thiệu") && (q.includes("nsg") || q.includes("ns group") || q.includes("ngọc sương") || q.includes("tập đoàn"))) ||
+    q.includes("tổng quan về nsg") ||
+    q.includes("tổng quan về ngọc sương")
+  ) {
+    return {
+      text: `📌 **Tóm tắt cốt lõi**:
+**Tập đoàn NS Group (Ngọc Sương Group)** là thương hiệu ẩm thực di sản và dịch vụ hiếu khách hàng đầu Việt Nam với bề dày lịch sử vẻ vang **70 năm (1955 - Nay)**. Khởi nguồn từ quán ăn hải sản bên vịnh Cam Ranh, NS Group ngày nay đã phát triển thành hệ sinh thái đa phân khúc quy mô lớn gồm F&B cao cấp, bất động sản nghỉ dưỡng và dịch vụ phong cách sống sáng tạo.
+
+💡 **Hồ sơ Năng lực Toàn diện của Tập đoàn NS Group**:
+
+1. **Di sản Lịch sử 70 năm & Quy mô Phát triển**:
+   - **Năm 1955**: Khai sinh bởi cụ **Trần Tương** tại Cam Ranh với tên gọi "Ngọc Sương" (tên ghép của người vợ và con gái), biểu tượng cối xay gió Trại Mát mộc mạc.
+   - **Năm 1968**: Kế nghiệp bởi ông **Trần Anh Dũng** (thế hệ thứ 2), chuẩn hóa món Gỏi cá Ngọc Sương huyền thoại.
+   - **1977 - 1987**: Ông Trần Anh Dũng tu nghiệp tại Pháp, mở chuỗi 4 nhà hàng danh tiếng tại Paris (*Restaurant Saigon, Mandarine, Palais Imperial, Orchidee*), tiếp thu tinh hoa sốt bơ tỏi và vang Pháp kết hợp hải sản tươi Cam Ranh.
+   - **1990 - Nay**: Mở rộng chuỗi ẩm thực đô thị tại TP.HCM (Lê Quý Đôn, Sương Nguyệt Ánh, Bến Thuyền) và Resort Cam Ranh – phim trường độc quyền cho các bom tấn điện ảnh *"Những Nụ Hôn Rực Rỡ"* (2010) và *"Mỹ Nhân Kế"* (2013).
+
+2. **Hệ sinh thái Thương hiệu Đa phân khúc (Portfolio Branding)**:
+   - **Dạ Yến (4 sao)**: Đỉnh cao hải sản Cung đình Huế thời Pháp, sang trọng và chuẩn mực tiệc ngoại giao.
+   - **Saigon Marina (4 sao)**: Hải sản cao cấp du thuyền phong cách Âu đương đại.
+   - **Yến Bay (4 sao)**: Chuẩn mực hải sản Ngọc Sương truyền thống, ấm cúng cho gia đình và doanh nghiệp.
+   - **KingClam (3 sao)**: Beer Club & Bistro phong cách Âu trẻ trung, chuyên nghêu và steak.
+   - **Quán Ăn Trại Mát & Chợ Cũ (3 sao)**: Không gian ẩm thực di sản, hoài niệm ký ức dân dã.
+   - **Exocafé**: Café nhiệt đới & bakery thủ công mỹ nghệ cao cấp.
+
+3. **Bộ máy Lãnh đạo & Nhân sự Chủ lực**:
+   - **Ông Trần Anh Dũng**: Chủ tịch HĐQT NS Group, linh hồn văn hóa ẩm thực và định hướng bản sắc tập đoàn.
+   - **Ông Lê Hoàng Hải**: Điều hành NS Group, quản lý toàn diện mọi hoạt động, chiến lược và tài chính.
+   - **Ông Lâm Khắc Bảo Lân**: NS Gourmet, giữ gìn và phát triển bản sắc các thương hiệu con.
+   - **Ông Mạc Vi Chi**: Exo Market, quản trị chuỗi cung ứng thực phẩm và nghiên cứu nguồn nguyên liệu đặc thù.
+   - **Ông Thái Minh Toàn**: Phụ trách Marina, tái thiết và dẫn dắt sự trở lại đầy phong cách của thương hiệu Marina.
+   - **Ông Trần Pascal Quang**: Exora (Thế hệ thứ 3), cung ứng giải pháp toàn diện về trang thiết bị, thiết kế kiến trúc và phong cách sống sáng tạo.
+   *(Lưu ý: Nhân sự Phạm Đăng Phú đã được miễn nhiệm, hiện không còn thuộc tập đoàn).*
+
+4. **Tầm nhìn & Kế hoạch Chiến lược 2026 - 2030**:
+   - **Dự án Bến Thuyền (Nguyễn Văn Trỗi)**: Tái tạo theo mô hình *"Phố dạo bờ kênh - Canal Promenade"* với tổ hợp Yến Bay, Exocafé, KingClam.
+   - **Hạ tầng Cốt lõi**: Vận hành Bếp trung tâm (**Central Kitchen**) và Học viện đào tạo chuyên sâu (**NS Academy**).
+   - **Khu đô thị Thủ Thiêm**: Hiện diện tại dự án cao cấp *The Opera Complex* với bộ ba Marina, KingClam, Chợ Cũ.
+   - **Vươn tầm Quốc tế (từ 2030)**: Đại bản doanh R&D Lê Quý Đôn và đưa thương hiệu ẩm thực di sản Việt vươn ra toàn cầu.
+
+📄 **Tài liệu tham khảo**:
+[TÀI LIỆU: NSG History.docx]
+[GỢI Ý: Chi tiết chiến lược 2026-2030 tại Thủ Thiêm The Opera Complex | Di sản món Gỏi cá Ngọc Sương và kỹ nghệ vang Pháp | Các thương hiệu thuộc khối F&B của NS Group]`,
+      citedDocNames: [
+        "NSG History.docx",
+        "Hồ Sơ Doanh Nghiệp & Lịch Sử NS Group (NSG History.docx)",
+      ],
+    };
+  }
+
   // 1. Phim ảnh / Điện ảnh / Phim trường / Bối cảnh điện ảnh
   if (
     q.includes("phim") ||
@@ -68,7 +122,7 @@ Linh hồn và người dẫn dắt bản sắc văn hóa ẩm thực của NS G
    - Quản lý toàn bộ hoạt động vận hành; định hướng chiến lược – tài chính và mục tiêu tăng trưởng toàn diện.
 3. **Ông Lâm Khắc Bảo Lân - NS Gourmet**:
    - Giữ gìn và phát triển bản sắc các thương hiệu con; tối ưu hóa quy trình vận hành thích ứng biến động thị trường.
-4. **Bà Mạc Vi Chi - Exo Market**:
+4. **Ông Mạc Vi Chi - Exo Market**:
    - Quản trị chuỗi cung ứng thực phẩm tươi sống; nghiên cứu nguồn nguyên liệu đặc thù tiêu chuẩn cao.
 5. **Ông Thái Minh Toàn - Phụ trách Marina**:
    - Tái thiết và dẫn dắt sự trở lại đầy phong cách của thương hiệu ẩm thực du thuyền Marina.

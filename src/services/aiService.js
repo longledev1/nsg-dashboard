@@ -116,6 +116,8 @@ export async function askGeminiAI(
   documents = [],
   categories = [],
   subFolders = [],
+  currentUser = null,
+  restrictedFolderNames = [],
 ) {
   const query = userQuery.trim();
   if (!query) return { text: "", documents: [] };
@@ -209,6 +211,8 @@ export async function askGeminiAI(
     docContextText,
     historyContent: NSG_HISTORY_CONTENT,
     aiMemories,
+    currentUser,
+    restrictedFolderNames,
   });
 
   const contents = [
@@ -250,10 +254,10 @@ export async function askGeminiAI(
             contents,
             generationConfig: {
               temperature: 0.3,
-              maxOutputTokens: 2500,
+              maxOutputTokens: 8192,
             },
           }),
-        }, 35000);
+        }, 45000);
 
         if (response.ok) {
           const data = await response.json();
@@ -287,10 +291,10 @@ export async function askGeminiAI(
                   contents,
                   generationConfig: {
                     temperature: 0.3,
-                    maxOutputTokens: 2500,
+                    maxOutputTokens: 8192,
                   },
                 }),
-              }, 30000);
+              }, 40000);
               if (retryRes.ok) {
                 const retryData = await retryRes.json();
                 replyText = retryData?.candidates?.[0]?.content?.parts?.[0]?.text;

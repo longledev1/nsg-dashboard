@@ -34,6 +34,7 @@ export const DEFAULT_CATEGORIES = [
     name: "Pháp Lý",
     description: "Hồ sơ pháp lý, giấy phép & văn bản doanh nghiệp NS Group",
     isDefault: true,
+    minRole: "admin", // Chỉ dành riêng cho Admin, ẩn với Nhân viên
     color: "#0284c7", // Sky/Navy Blue
   },
 ];
@@ -106,7 +107,7 @@ IV. BỘ MÁY LÃNH ĐẠO & NHÂN SỰ CHỦ LỰC (KEY PERSONNEL)
 1. Trần Anh Dũng - Chủ tịch HĐQT NS Group: Linh hồn văn hóa ẩm thực; trực tiếp sáng tạo các món ăn di sản và định hướng bản sắc.
 2. Lê Hoàng Hải - Điều hành NS Group: Quản lý toàn bộ hoạt động; định hướng chiến lược – tài chính và tăng trưởng.
 3. Lâm Khắc Bảo Lân - NS Gourmet: Giữ gìn và phát triển bản sắc các thương hiệu con; tối ưu hóa vận hành thích ứng thị trường.
-4. Mạc Vi Chi - Exo Market: Quản trị chuỗi cung ứng thực phẩm; nghiên cứu nguồn nguyên liệu đặc thù tiêu chuẩn cao.
+4. Ông Mạc Vi Chi - Exo Market: Quản trị chuỗi cung ứng thực phẩm; nghiên cứu nguồn nguyên liệu đặc thù tiêu chuẩn cao.
 5. Thái Minh Toàn - Phụ trách Marina: Tái thiết và dẫn dắt sự trở lại của thương hiệu ẩm thực du thuyền Marina.
 6. Trần Pascal Quang - Exora (Thế hệ thứ 3): Cung ứng giải pháp toàn diện về trang thiết bị, kiến trúc và phong cách sống sáng tạo.
 * GHI CHÚ ĐẶC BIỆT: Nhân sự Phạm Đăng Phú đã được miễn nhiệm, không còn thuộc bộ máy nhân sự của tập đoàn NS Group.

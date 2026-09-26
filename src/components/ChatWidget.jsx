@@ -17,6 +17,12 @@ import {
   Zap,
 } from "lucide-react";
 import { askGeminiAI } from "../services/aiService";
+import {
+  checkQuestionRestricted,
+  filterDocumentsForUser,
+  loadRestrictedTopics,
+  loadRestrictedFolders,
+} from "../services/aiGuardrailService";
 import NsgWindIcon from "./NsgWindIcon";
 
 // Cấu hình hạn mức AI
@@ -286,6 +292,52 @@ export default function ChatWidget({
 
     setMessages((prev) => [...prev, userMsg]);
     if (!customText) setInputText("");
+
+    // KIỂM SOÁT PHÂN QUYỀN AI: Quét câu hỏi của Nhân viên xem có chủ đề nhạy cảm hoặc thư mục ẩn không
+    let activeFolders = [];
+    const restrictedFolderNames = [];
+
+    if (!isAdmin) {
+      activeFolders = await loadRestrictedFolders();
+      const activeTopics = await loadRestrictedTopics();
+
+      // Thu thập tên các Category và SubFolder đang bị khóa/ẩn đối với nhân viên
+      (categories || []).forEach((c) => {
+        if (activeFolders.includes(c.id) || c.minRole === "admin") {
+          if (c.name) restrictedFolderNames.push(c.name);
+        }
+      });
+      (subFolders || []).forEach((s) => {
+        if (activeFolders.includes(s.id) || s.minRole === "admin") {
+          if (s.name) restrictedFolderNames.push(s.name);
+        }
+      });
+
+      const guardrailCheck = checkQuestionRestricted(
+        query,
+        user,
+        activeTopics,
+        restrictedFolderNames
+      );
+
+      if (guardrailCheck.isRestricted) {
+        // Chặn tức thì: Phản hồi từ chối lịch sự, không tốn token Gemini, không trừ hạn mức
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now() + 1,
+            sender: "bot",
+            text: guardrailCheck.message,
+            timestamp: new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          },
+        ]);
+        return;
+      }
+    }
+
     setIsLoadingAI(true);
 
     // Cập nhật quota sử dụng và kích hoạt cooldown 5s
@@ -305,11 +357,31 @@ export default function ChatWidget({
     }
 
     try {
+      // Lọc tài liệu: Nhân viên sẽ không thấy tài liệu trong Thư mục bảo mật
+      if (!activeFolders.length && !isAdmin) {
+        activeFolders = await loadRestrictedFolders();
+      }
+      const filteredDocs = filterDocumentsForUser(documents, user, activeFolders);
+
+      // Lọc cả danh mục và subfolder hiển thị trong cấu trúc thư mục của AI đối với nhân viên
+      const effectiveCategories = isAdmin
+        ? categories
+        : (categories || []).filter(
+            (c) => !activeFolders.includes(c.id) && c.minRole !== "admin"
+          );
+      const effectiveSubFolders = isAdmin
+        ? subFolders
+        : (subFolders || []).filter(
+            (s) => !activeFolders.includes(s.id) && s.minRole !== "admin"
+          );
+
       const aiResult = await askGeminiAI(
         query,
-        documents,
-        categories,
-        subFolders,
+        filteredDocs,
+        effectiveCategories,
+        effectiveSubFolders,
+        user,
+        restrictedFolderNames,
       );
 
       const botMsg = {

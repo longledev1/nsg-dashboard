@@ -6,8 +6,8 @@ import ChatWidget from '../components/ChatWidget';
 import MobileBottomNav from '../components/mobile/MobileBottomNav';
 import Toast from '../components/Toast';
 
-// Lazy-load modals (Loaded on-demand only when user opens them)
-const PdfViewerModal = lazy(() => import('../components/PdfViewerModal'));
+// Modals
+import PdfViewerModal, { openDocumentInNewTab } from '../components/PdfViewerModal';
 const CategoryManagerModal = lazy(() => import('../components/admin/CategoryManagerModal'));
 const UserManagerModal = lazy(() => import('../components/admin/UserManagerModal'));
 const UploadModal = lazy(() => import('../components/admin/UploadModal'));
@@ -724,12 +724,11 @@ export default function DashboardPage({ user, onLogout }) {
     const isWord = detectDocumentFileType(doc) === 'word';
     const cleanUrl = sanitizeFileUrl(doc.fileUrl || doc.file_url);
 
+    // Trên thiết bị di động (iPhone / iPad / Android): Mở trực tiếp sang Tab mới toàn màn hình
+    // - Quản trị viên: Xem file gốc sạch sẽ 100%
+    // - Nhân viên: Tự động phủ Watermark bảo mật chống chụp màn hình 100%
     if (!isWord && isTouchDeviceOrIOS() && cleanUrl) {
-      if (cleanUrl.startsWith('/') && typeof window !== 'undefined' && window.location.origin.startsWith('http')) {
-        window.open(`${window.location.origin}${cleanUrl}`, '_blank', 'noopener,noreferrer');
-      } else {
-        window.open(cleanUrl, '_blank', 'noopener,noreferrer');
-      }
+      openDocumentInNewTab(doc, user, cleanUrl);
       return;
     }
 
@@ -871,6 +870,7 @@ export default function DashboardPage({ user, onLogout }) {
         {selectedPdf && (
           <PdfViewerModal
             document={selectedPdf}
+            currentUser={user}
             onUpdateDocument={(updated) => {
               setSelectedPdf(updated);
               setDocuments(prev => prev.map(d => d.id === updated.id ? { ...d, ...updated } : d));

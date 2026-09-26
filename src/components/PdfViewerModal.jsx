@@ -116,15 +116,26 @@ function WordContentRenderer({ content, title }) {
   );
 }
 
-export default function PdfViewerModal({ document, onUpdateDocument, onClose }) {
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(100);
-  const [activeUrl, setActiveUrl] = useState(null);
-  const [isUrlResolved, setIsUrlResolved] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [isReuploading, setIsReuploading] = useState(false);
-  const [viewerMode, setViewerMode] = useState('direct'); // 'direct' (native browser PDF) | 'google' | 'text'
-  const fileInputRef = useRef(null);
+/**
+ * Tạo URL dữ liệu SVG watermark cân đối hoàn hảo, không bao giờ bị cắt chữ STAFF
+ */
+function createWatermarkSvgUrl(text, color = '%23000000', opacity = '0.75') {
+  const encoded = encodeURIComponent(text);
+  // Tile rộng 520px, cao 220px. Đặt tâm ở (260, 110), dùng text-anchor='middle' và xoay -24 độ quanh chính tâm.
+  // Đảm bảo chữ STAFF và cả chuỗi text luôn nằm trọn 100% trong khung, cách viền ít nhất 80px.
+  return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='220' viewBox='0 0 520 220'%3E%3Ctext x='260' y='110' text-anchor='middle' dominant-baseline='central' transform='rotate(-24 260 110)' fill='${color}' font-size='12' font-family='sans-serif' font-weight='700' opacity='${opacity}'%3E${encoded}%3C/text%3E%3C/svg%3E`;
+}
+
+/**
+ * Mở tài liệu trực tiếp sang Tab mới toàn màn hình có phân quyền bảo mật:
+ * - Admin: Mở trực tiếp file gốc sạch sẽ 100%
+ * - Nhân viên (Staff): Mở giao diện bảo mật toàn màn hình phủ Watermark ma trận toàn diện
+ */
+export function openDocumentInNewTab(document, currentUser, explicitUrl = null) {
+  if (!document) return;
+  const isAdmin = currentUser?.role === 'admin';
+  const rawUrl = explicitUrl || sanitizeFileUrl(document.fileUrl || document.file_url);
+  if (!rawUrl) return;
 
   const isWord = document?.fileType === 'word' || 
                  document?.id === 'doc-nsg-history-profile' ||
@@ -132,25 +143,200 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
                  (/\.docx?(\?|$)/i.test(document?.fileUrl || '')) ||
                  (document?.title && document.title.toLowerCase().includes('.doc'));
 
-  // 1. Phân giải đường dẫn tệp an toàn
+  // 1. Quản trị viên (Admin): Mở tab mới với file gốc sạch sẽ như cũ
+  if (isAdmin) {
+    if (rawUrl.startsWith('/') && typeof window !== 'undefined' && window.location.origin.startsWith('http')) {
+      const fullPublicUrl = `${window.location.origin}${rawUrl}`;
+      window.open(fullPublicUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (isWord && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))) {
+      const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(rawUrl)}`;
+      window.open(googleViewerUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    window.open(rawUrl, '_blank', 'noopener,noreferrer');
+    return;
+  }
+
+  // 2. Nhân viên (Staff): Mở tab bảo mật toàn màn hình có Watermark định danh chống chụp ảnh
+  const email = (currentUser?.email || 'Nội bộ NS Group').toUpperCase();
+  const dateStr = new Date().toLocaleDateString('vi-VN');
+  const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  const fullWatermarkText = `${email} • ${dateStr} ${timeStr} • NS GROUP CONFIDENTIAL`;
+  const tabWatermarkSvgUrl = createWatermarkSvgUrl(fullWatermarkText, '%23000000', '0.75');
+
+  if (rawUrl) {
+    // Xác định nguồn nhúng iframe trong tab mới (trên mobile không thêm hash toolbar để WebKit render nhanh nhất)
+    let targetFrameUrl = rawUrl;
+    if (!isTouchDeviceOrIOS()) {
+      targetFrameUrl = `${rawUrl}#toolbar=1&navpanes=1`;
+    }
+    if (rawUrl.startsWith('/') && typeof window !== 'undefined' && window.location.origin.startsWith('http')) {
+      targetFrameUrl = isTouchDeviceOrIOS()
+        ? `${window.location.origin}${rawUrl}`
+        : `${window.location.origin}${rawUrl}#toolbar=1&navpanes=1`;
+    } else if (isWord && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))) {
+      targetFrameUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(rawUrl)}&embedded=true`;
+    }
+
+    const newTab = window.open('', '_blank');
+    if (!newTab) {
+      alert('Trình duyệt đã chặn tab mới. Vui lòng cho phép Pop-up để mở tài liệu.');
+      return;
+    }
+
+    newTab.document.write(`
+      <!DOCTYPE html>
+      <html lang="vi">
+        <head>
+          <meta charset="utf-8">
+          <title>${document.title} - Bản xem bảo mật NS Group</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            html, body { width: 100%; height: 100%; overflow: hidden; background: #26231f; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+            .header-bar {
+              height: 42px;
+              background: #322e29;
+              border-bottom: 1px solid #4d4841;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              padding: 0 16px;
+              color: #f4f4f5;
+              font-size: 13px;
+              z-index: 100;
+              position: relative;
+            }
+            .header-title {
+              font-weight: 500;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              max-width: 90%;
+            }
+            .viewer-frame {
+              width: 100%;
+              height: calc(100% - 42px);
+              border: none;
+              background: #525659;
+              display: block;
+            }
+            /* Lớp Watermark ma trận bảo mật phủ toàn màn hình mới */
+            .watermark-overlay {
+              position: fixed;
+              top: 42px;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              pointer-events: none;
+              user-select: none;
+              z-index: 9999;
+              overflow: hidden;
+              opacity: 0.16;
+            }
+            .watermark-grid {
+              width: 280%;
+              height: 280%;
+              position: absolute;
+              top: -90%;
+              left: -90%;
+              pointer-events: none;
+              user-select: none;
+              background-image: url("${tabWatermarkSvgUrl}");
+              background-repeat: repeat;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header-bar">
+            <div class="header-title">
+              <span>${document.title}</span>
+            </div>
+          </div>
+          <div class="watermark-overlay">
+            <div class="watermark-grid"></div>
+          </div>
+          <iframe 
+            class="viewer-frame" 
+            src="${targetFrameUrl}" 
+            title="${document.title}">
+          </iframe>
+        </body>
+      </html>
+    `);
+    newTab.document.close();
+    return;
+  }
+
+  // 2. Nếu chỉ có văn bản trích xuất -> mở trang tab mới toàn màn hình với watermark
+  const textContent = document.content || document.description;
+  if (textContent) {
+    const newWin = window.open('', '_blank');
+    if (newWin) {
+      newWin.document.write(`
+        <!DOCTYPE html>
+        <html lang="vi">
+          <head>
+            <meta charset="utf-8">
+            <title>${document.title} - Bản xem bảo mật</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.75; padding: 40px 20px; max-width: 900px; margin: 0 auto; color: #27272a; background: #f4f4f5; position: relative; }
+              .container { background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #e4e4e7; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.08); position: relative; overflow: hidden; }
+              .watermark-overlay { position: fixed; inset: 0; pointer-events: none; user-select: none; z-index: 999; opacity: 0.13; }
+              .watermark-grid { width: 280%; height: 280%; position: absolute; top: -90%; left: -90%; background-image: url("${tabWatermarkSvgUrl}"); background-repeat: repeat; }
+              h1 { color: #18181b; border-bottom: 2px solid #f4f4f5; padding-bottom: 16px; font-size: 24px; margin-top: 0; }
+              .content { white-space: pre-wrap; font-size: 15px; color: #3f3f46; word-break: break-word; }
+            </style>
+          </head>
+          <body>
+            <div class="watermark-overlay"><div class="watermark-grid"></div></div>
+            <div class="container">
+              <h1>${document.title}</h1>
+              <div class="content">${textContent.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+            </div>
+          </body>
+        </html>
+      `);
+      newWin.document.close();
+    }
+  }
+}
+
+export default function PdfViewerModal({ document, onUpdateDocument, onClose, currentUser }) {
+  const initialUrl = sanitizeFileUrl(document?.fileUrl || document?.file_url);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(100);
+  const [activeUrl, setActiveUrl] = useState(initialUrl);
+  const [isUrlResolved, setIsUrlResolved] = useState(Boolean(initialUrl));
+  const [copied, setCopied] = useState(false);
+  const [isReuploading, setIsReuploading] = useState(false);
+  const [viewerMode, setViewerMode] = useState('direct'); // 'direct' (native browser PDF) | 'google' | 'text'
+  const fileInputRef = useRef(null);
+  const isAdmin = currentUser?.role === 'admin';
+  const userEmail = (currentUser?.email || 'Nội bộ NS Group').toUpperCase();
+  const dateStr = new Date().toLocaleDateString('vi-VN');
+  const watermarkDisplayText = `${userEmail} • ${dateStr} • NS GROUP CONFIDENTIAL`;
+
+  const isWord = document?.fileType === 'word' || 
+                 document?.id === 'doc-nsg-history-profile' ||
+                 (/\.docx?(\)|$|\?|\s)/i.test(document?.title || '')) ||
+                 (/\.docx?(\?|$)/i.test(document?.fileUrl || '')) ||
+                 (document?.title && document.title.toLowerCase().includes('.doc'));
+
+  // 1. Phân giải đường dẫn tệp tức thì & nâng cấp ngầm từ IndexedDB nếu có
   useEffect(() => {
     let isMounted = true;
     
     async function resolveFileUrl() {
       if (!document) return;
-      setIsUrlResolved(false);
 
-      // 1. Phân giải URL từ Cloud / Public Static Path được truyền qua props
-      const rawUrl = document.fileUrl || document.file_url;
-      const cleanUrl = sanitizeFileUrl(rawUrl);
-
-      if (cleanUrl && isMounted) {
-        setActiveUrl(cleanUrl);
-        setIsUrlResolved(true);
-        return;
-      }
-
-      // 2. Kiểm tra trong IndexedDB của máy hiện tại
+      // 1. Kiểm tra ngầm trong IndexedDB máy hiện tại (nếu có Blob cục bộ sẽ nâng cấp để tải nhanh hơn)
       if (document.id) {
         try {
           const localData = await getLocalFileUrl(document.id);
@@ -164,7 +350,23 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
         }
       }
 
-      // 3. Tự động truy vấn trực tiếp Supabase Database (Xử lý trường hợp Tab 2 mở sẵn từ trước khi Tab 1 nạp file)
+      // 2. Nếu đã có initialUrl từ props thì đã sẵn sàng ngay lập tức
+      if (initialUrl && isMounted) {
+        setActiveUrl(initialUrl);
+        setIsUrlResolved(true);
+        return;
+      }
+
+      // 3. Phân giải URL từ Cloud nếu chưa có
+      const rawUrl = document.fileUrl || document.file_url;
+      const cleanUrl = sanitizeFileUrl(rawUrl);
+      if (cleanUrl && isMounted) {
+        setActiveUrl(cleanUrl);
+        setIsUrlResolved(true);
+        return;
+      }
+
+      // 4. Tự động truy vấn trực tiếp Supabase Database (phòng trường hợp tài liệu vừa nạp trên thiết bị khác)
       if (document.id && isSupabaseConfigured && supabase) {
         try {
           const { data: dbData } = await supabase
@@ -173,9 +375,9 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
             .eq('id', document.id)
             .maybeSingle();
 
-          if (dbData?.file_url) {
+          if (dbData?.file_url && isMounted) {
             const freshUrl = sanitizeFileUrl(dbData.file_url);
-            if (freshUrl && isMounted) {
+            if (freshUrl) {
               setActiveUrl(freshUrl);
               setIsUrlResolved(true);
               return;
@@ -186,7 +388,7 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
         }
       }
 
-      // 4. Với tài liệu hồ sơ mặc định nếu mất URL, fallback về public asset
+      // 5. Với tài liệu hồ sơ mặc định nếu mất URL, fallback về public asset
       if (document.id === 'doc-nsg-history-profile' && isMounted) {
         setActiveUrl('/NSG History.docx');
         setIsUrlResolved(true);
@@ -194,7 +396,6 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
       }
 
       if (isMounted) {
-        setActiveUrl(null);
         setIsUrlResolved(true);
       }
     }
@@ -204,12 +405,19 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
     return () => {
       isMounted = false;
     };
-  }, [document]);
+  }, [document, currentUser]);
 
   if (!document) return null;
 
   const handleDownload = () => {
+    // Tài khoản Nhân viên: Chỉ có quyền xem trực tuyến, không được phép tải tệp về máy cá nhân
+    if (!isAdmin) {
+      alert('🔒 BẢO MẬT HỒ SƠ DOANH NGHIỆP\nTài khoản Nhân viên chỉ được cấp quyền xem trực tuyến trên hệ thống, không được phép tải tệp tài liệu về máy cá nhân.');
+      return;
+    }
+
     const downloadUrl = activeUrl || sanitizeFileUrl(document.fileUrl || document.file_url);
+
     if (downloadUrl) {
       const link = window.document.createElement('a');
       link.href = downloadUrl;
@@ -338,60 +546,9 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
     }
   };
 
-  // Mở tài liệu trực tiếp sang Tab mới toàn màn hình (hỗ trợ tối đa cho iPad, Safari, Chrome)
+  // Mở tài liệu trực tiếp sang Tab mới toàn màn hình
   const handleOpenNewTab = () => {
-    const rawUrl = activeUrl || sanitizeFileUrl(document.fileUrl || document.file_url);
-    if (rawUrl) {
-      // 1. Nếu là đường dẫn tệp tĩnh public (như /NSG History.docx) trên hosting
-      if (rawUrl.startsWith('/') && typeof window !== 'undefined' && window.location.origin.startsWith('http')) {
-        const fullPublicUrl = `${window.location.origin}${rawUrl}`;
-        window.open(fullPublicUrl, '_blank', 'noopener,noreferrer');
-        return;
-      }
-
-      // 2. Mở URL online qua Google Docs Viewer để xem mượt mà 100% trên mọi thiết bị
-      if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
-        const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(rawUrl)}`;
-        window.open(googleViewerUrl, '_blank', 'noopener,noreferrer');
-        return;
-      }
-
-      window.open(rawUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
-    // 4. Nếu chỉ có văn bản trích xuất -> mở trang tab mới toàn màn hình
-    const textContent = document.content || document.description;
-    if (textContent) {
-      const newWin = window.open('', '_blank');
-      if (newWin) {
-        newWin.document.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <meta charset="utf-8">
-              <title>${document.title}</title>
-              <meta name="viewport" content="width=device-width, initial-scale=1">
-              <style>
-                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.75; padding: 40px 20px; max-width: 900px; margin: 0 auto; color: #27272a; background: #f4f4f5; }
-                .container { background: #ffffff; padding: 48px; border-radius: 16px; border: 1px solid #e4e4e7; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.08); }
-                h1 { color: #18181b; border-bottom: 2px solid #f4f4f5; padding-bottom: 16px; font-size: 24px; margin-top: 0; }
-                .meta { font-size: 13px; color: #71717a; margin-bottom: 28px; font-family: monospace; font-weight: 600; }
-                .content { white-space: pre-wrap; font-size: 15px; color: #3f3f46; word-break: break-word; }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <h1>${document.title}</h1>
-                <div class="meta">NS GROUP PORTAL &bull; HỒ SƠ TẬP ĐOÀN &bull; LƯU HÀNH NỘI BỘ</div>
-                <div class="content">${textContent.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
-              </div>
-            </body>
-          </html>
-        `);
-        newWin.document.close();
-      }
-    }
+    openDocumentInNewTab(document, currentUser, activeUrl);
   };
 
   const hasContentText = Boolean(document.content || document.description);
@@ -408,7 +565,11 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
         return `https://docs.google.com/viewer?url=${encodeURIComponent(fullUrl)}&embedded=true`;
       }
     }
-    // Mặc định viewerMode === 'direct': nạp trực tiếp PDF
+    // Thiết bị di động / cảm ứng: nạp trực tiếp stream không gắn hash toolbar để WebKit/Chrome di động render nhanh nhất
+    if (isTouchDeviceOrIOS()) {
+      return activeUrl;
+    }
+    // Mặc định desktop: nạp trực tiếp PDF có toolbar
     return `${activeUrl}#toolbar=1&navpanes=1`;
   };
 
@@ -431,7 +592,7 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
       {/* Modal Container */}
       <div 
         className={`bg-[#3f3b35] border border-[#59544c] rounded-none sm:rounded-2xl flex flex-col shadow-2xl overflow-hidden transition-all duration-300 ${
-          isFullscreen ? 'w-full h-full rounded-none' : 'w-full h-full sm:h-[92vh] sm:max-w-5xl'
+          isFullscreen ? 'w-full h-full rounded-none' : 'w-full h-full sm:h-[95vh] sm:max-w-6xl xl:max-w-7xl'
         }`}
       >
         {/* Top Control Bar */}
@@ -447,8 +608,8 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
               <h2 className="font-semibold text-sm text-zinc-100 truncate" title={document.title}>
                 {document.title}
               </h2>
-              <p className="text-[11px] text-zinc-300 flex items-center gap-1.5 flex-wrap">
-                <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${
+              <p className="text-[11px] text-zinc-400 flex items-center gap-2 flex-wrap">
+                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
                   isWord ? 'bg-blue-600 text-white' : 'bg-red-600 text-white'
                 }`}>
                   {isWord ? 'WORD DOCX' : 'PDF DOCUMENT'}
@@ -456,7 +617,7 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
                 <span>Size: {document.fileSize || 'N/A'}</span>
                 <span>&bull; Ngày: {document.createdAt || 'Gần đây'}</span>
                 {!activeUrl && !isWord && (
-                  <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">
                     Trích xuất văn bản
                   </span>
                 )}
@@ -492,32 +653,34 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
             <button
               onClick={handleOpenNewTab}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#4d4841] hover:bg-[#5d574e] text-[#d0aa61] hover:text-[#e4c27a] font-semibold text-xs rounded-lg transition-colors cursor-pointer border border-[#5d574e] shadow-2xs"
-              title="Mở sang Tab mới để xem toàn màn hình (khắc phục lỗi màn hình trắng iPad)"
+              title="Mở sang Tab mới để xem toàn màn hình"
             >
               <ExternalLink className="w-3.5 h-3.5 text-[#d0aa61]" />
               <span className="hidden sm:inline">Mở Tab Mới</span>
               <span className="sm:hidden">Tab mới</span>
             </button>
 
-            {/* Nút Đính kèm / Nạp lại tệp PDF gốc */}
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isReuploading}
-              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 bg-[#4d4841] hover:bg-[#5d574e] text-zinc-200 text-xs rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-              title="Tải lên tệp gốc để đồng bộ"
-            >
-              {isReuploading ? (
-                <>
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#d0aa61]" />
-                  <span>Đang nạp...</span>
-                </>
-              ) : (
-                <>
-                  <FileUp className="w-3.5 h-3.5 text-[#d0aa61]" />
-                  <span>Nạp file gốc</span>
-                </>
-              )}
-            </button>
+            {/* Nút Đính kèm / Nạp lại tệp PDF gốc (Chỉ Quản trị viên) */}
+            {isAdmin && (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isReuploading}
+                className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 bg-[#4d4841] hover:bg-[#5d574e] text-zinc-200 text-xs rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                title="Tải lên tệp gốc để đồng bộ (Quản trị viên)"
+              >
+                {isReuploading ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#d0aa61]" />
+                    <span>Đang nạp...</span>
+                  </>
+                ) : (
+                  <>
+                    <FileUp className="w-3.5 h-3.5 text-[#d0aa61]" />
+                    <span>Nạp file gốc</span>
+                  </>
+                )}
+              </button>
+            )}
 
             {/* Copy Button */}
             {hasContentText && (
@@ -543,8 +706,8 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
             {/* Download Button */}
             <button
               onClick={handleDownload}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#d0aa61] hover:bg-[#b89149] text-[#322e29] font-bold text-xs rounded-lg transition-colors shadow-xs cursor-pointer"
-              title="Tải tệp về máy"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#4d4841] hover:bg-[#5d574e] text-zinc-200 text-xs rounded-lg transition-colors cursor-pointer"
+              title={isAdmin ? "Tải tệp gốc về máy" : "Tài liệu bảo mật - Chỉ xem nội bộ, không tải về"}
             >
               <Download className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Tải về</span>
@@ -572,6 +735,22 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
 
         {/* Reader Canvas Body */}
         <div className="flex-1 w-full relative min-h-0 bg-[#26231f] flex flex-col overflow-hidden">
+          {/* Lớp Watermark ma trận bảo mật phủ toàn diện trên màn hình xem (Chỉ áp dụng cho Nhân viên, Admin xem bản sạch) */}
+          {isUrlResolved && !isAdmin && (
+            <div 
+              className="absolute inset-0 pointer-events-none select-none z-30 overflow-hidden"
+              style={{ opacity: 0.16 }}
+            >
+              <div 
+                className="w-[280%] h-[280%] -top-[90%] -left-[90%] absolute pointer-events-none select-none"
+                style={{
+                  backgroundImage: `url("${createWatermarkSvgUrl(watermarkDisplayText, '%23000000', '0.70')}")`,
+                  backgroundRepeat: 'repeat',
+                }}
+              />
+            </div>
+          )}
+
           {!isUrlResolved ? (
             <div className="py-32 flex flex-col items-center justify-center gap-3 text-zinc-300 flex-1">
               <RefreshCw className="w-7 h-7 animate-spin text-[#d0aa61]" />
@@ -603,13 +782,23 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose }) 
 
               {/* Trang giấy A4 màu trắng bao bọc toàn bộ nội dung từ đầu tới cuối */}
               <div 
-                className="bg-white text-zinc-900 rounded-xl shadow-2xl w-full max-w-4xl p-6 sm:p-12 md:p-16 border border-zinc-200 transition-transform"
+                className="bg-white text-zinc-900 rounded-xl shadow-2xl w-full max-w-4xl p-6 sm:p-12 md:p-16 border border-zinc-200 transition-transform relative overflow-hidden"
                 style={{
                   transform: zoomLevel !== 100 ? `scale(${zoomLevel / 100})` : undefined,
                   transformOrigin: 'top center',
                   marginBottom: zoomLevel > 100 ? `${(zoomLevel - 100) * 10}px` : '40px'
                 }}
               >
+                {/* Lớp Watermark bảo mật phủ chìm trên trang giấy A4 (Chỉ áp dụng cho Nhân viên) */}
+                {!isAdmin && (
+                  <div 
+                    className="absolute inset-0 pointer-events-none select-none z-10 overflow-hidden"
+                    style={{
+                      backgroundImage: `url("${createWatermarkSvgUrl(watermarkDisplayText, '%2352525b', '0.12')}")`,
+                      backgroundRepeat: 'repeat',
+                    }}
+                  />
+                )}
                 {/* Header trang tài liệu */}
                 <div className="border-b-2 border-zinc-100 pb-5 mb-8 flex items-center justify-between">
                   <div className="flex items-center gap-3">

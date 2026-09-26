@@ -717,21 +717,10 @@ export default function DashboardPage({ user, onLogout }) {
   };
 
   // Mở tài liệu thông minh (Smart Document Viewer)
-  // Nếu là iPad / iPhone / thiết bị di động VÀ là file PDF -> Mở trực tiếp sang Tab mới (tránh lỗi màn hình trắng của WebKit)
-  // Nếu là file Word hoặc xem trên máy tính PC -> Mở Popup Modal chuẩn A4
+  // Mở tài liệu trực tiếp trong App (Fullscreen trên Mobile, Modal trên Desktop)
+  // Đảm bảo Watermark bảo mật 100% không bị dịch vụ ngoài can thiệp
   const handleViewDocument = (doc) => {
     if (!doc) return;
-    const isWord = detectDocumentFileType(doc) === 'word';
-    const cleanUrl = sanitizeFileUrl(doc.fileUrl || doc.file_url);
-
-    // Trên thiết bị di động (iPhone / iPad / Android): Mở trực tiếp sang Tab mới toàn màn hình
-    // - Quản trị viên: Xem file gốc sạch sẽ 100%
-    // - Nhân viên: Tự động phủ Watermark bảo mật chống chụp màn hình 100%
-    if (!isWord && isTouchDeviceOrIOS() && cleanUrl) {
-      openDocumentInNewTab(doc, user, cleanUrl);
-      return;
-    }
-
     setSelectedPdf(doc);
     if (typeof window !== 'undefined') {
       window.history.pushState({ modal: 'pdf', cat: activeCategory, sub: activeSubFolder }, '', window.location.href);

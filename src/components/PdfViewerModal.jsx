@@ -167,9 +167,12 @@ export function openDocumentInNewTab(document, currentUser, explicitUrl = null) 
   const tabWatermarkSvgUrl = createWatermarkSvgUrl(fullWatermarkText, '%23000000', '0.75');
 
   if (rawUrl) {
-    // Xác định nguồn nhúng iframe trong tab mới (trên mobile không thêm hash toolbar để WebKit render nhanh nhất)
+    // Xác định nguồn nhúng iframe trong tab mới (trên Android dùng embedded mode để không bị redirect ra ngoài)
+    const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '');
     let targetFrameUrl = rawUrl;
-    if (!isTouchDeviceOrIOS()) {
+    if (isAndroid && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))) {
+      targetFrameUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(rawUrl)}&embedded=true`;
+    } else if (!isTouchDeviceOrIOS()) {
       targetFrameUrl = `${rawUrl}#toolbar=1&navpanes=1`;
     }
     if (rawUrl.startsWith('/') && typeof window !== 'undefined' && window.location.origin.startsWith('http')) {
@@ -556,16 +559,12 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose, cu
   // Tính toán đường dẫn hiển thị cho iframe: mặc định dùng trực tiếp PDF (nhanh, nét, ổn định nhất)
   const getEmbeddedIframeSrc = () => {
     if (!activeUrl) return null;
-    if (viewerMode === 'google') {
-      if (activeUrl.startsWith('http://') || activeUrl.startsWith('https://')) {
-        return `https://docs.google.com/viewer?url=${encodeURIComponent(activeUrl)}&embedded=true`;
-      }
-      if (activeUrl.startsWith('/') && typeof window !== 'undefined' && window.location.origin.startsWith('http')) {
-        const fullUrl = `${window.location.origin}${activeUrl}`;
-        return `https://docs.google.com/viewer?url=${encodeURIComponent(fullUrl)}&embedded=true`;
-      }
+    const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '');
+    // Trên Android hoặc khi chọn chế độ google: nhúng Google Docs Viewer an toàn BÊN DƯỚI lớp Watermark của NSG
+    if (viewerMode === 'google' || (isAndroid && (activeUrl.startsWith('http://') || activeUrl.startsWith('https://')))) {
+      return `https://docs.google.com/viewer?url=${encodeURIComponent(activeUrl)}&embedded=true`;
     }
-    // Thiết bị di động / cảm ứng: nạp trực tiếp stream không gắn hash toolbar để WebKit/Chrome di động render nhanh nhất
+    // Thiết bị di động cảm ứng iOS (Safari): nạp trực tiếp stream không gắn hash toolbar để WebKit render nhanh nhất
     if (isTouchDeviceOrIOS()) {
       return activeUrl;
     }
@@ -738,13 +737,13 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose, cu
           {/* Lớp Watermark ma trận bảo mật phủ toàn diện trên màn hình xem (Chỉ áp dụng cho Nhân viên, Admin xem bản sạch) */}
           {isUrlResolved && !isAdmin && (
             <div 
-              className="absolute inset-0 pointer-events-none select-none z-30 overflow-hidden"
-              style={{ opacity: 0.16 }}
+              className="absolute inset-0 pointer-events-none select-none z-40 overflow-hidden"
+              style={{ opacity: 0.20 }}
             >
               <div 
                 className="w-[280%] h-[280%] -top-[90%] -left-[90%] absolute pointer-events-none select-none"
                 style={{
-                  backgroundImage: `url("${createWatermarkSvgUrl(watermarkDisplayText, '%23000000', '0.70')}")`,
+                  backgroundImage: `url("${createWatermarkSvgUrl(watermarkDisplayText, '%23000000', '0.75')}")`,
                   backgroundRepeat: 'repeat',
                 }}
               />
@@ -844,35 +843,13 @@ export default function PdfViewerModal({ document, onUpdateDocument, onClose, cu
               </div>
             </div>
           ) : iframeSrc ? (
-            /* Trình đọc PDF nhúng: dùng object kết hợp iframe fallback chuẩn W3C */
+            /* Trình đọc PDF nhúng an toàn trong App, phủ Watermark 100% */
             <div className="absolute inset-0 w-full h-full bg-white flex flex-col">
-              {/* Banner trợ giúp thông minh cho iPad / thiết bị di động */}
-              {isTouchDeviceOrIOS() && (
-                <div className="bg-[#faf6ed] border-b border-[#d0aa61]/40 px-3 sm:px-4 py-2 flex items-center justify-between gap-2 text-xs text-[#504b44] shrink-0 shadow-2xs">
-                  <span className="font-medium truncate">
-                    📱 Nếu bạn dùng <strong>iPad / Mobile</strong> và khung bên dưới bị trắng do Apple chặn, hãy mở Tab mới:
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleOpenNewTab}
-                    className="px-2.5 py-1 bg-[#d0aa61] hover:bg-[#b89149] text-[#322e29] font-bold rounded-lg transition-all shadow-xs cursor-pointer shrink-0 flex items-center gap-1"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span>Mở Tab Mới</span>
-                  </button>
-                </div>
-              )}
-              <object
-                data={iframeSrc}
-                type="application/pdf"
-                className="w-full h-full flex-1 border-0"
-              >
-                <iframe
-                  src={iframeSrc}
-                  title={document.title}
-                  className="w-full h-full flex-1 border-0 bg-white"
-                />
-              </object>
+              <iframe
+                src={iframeSrc}
+                title={document.title}
+                className="w-full h-full flex-1 border-0 bg-white"
+              />
             </div>
           ) : (
             /* Fallback xem văn bản khi PDF mất liên kết file nhị phân */
